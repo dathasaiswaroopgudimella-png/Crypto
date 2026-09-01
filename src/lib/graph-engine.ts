@@ -7,7 +7,7 @@ export class GraphTraversalEngine {
   async traceFraudPath(
     rootAddress: string,
     network?: BlockchainNetwork,
-    initialStolenAmount: number = 100000,
+    initialStolenAmount: number = 0,
     maxHops: number = 5,
     isPresetCaseRequest: boolean = false
   ): Promise<GraphTraceResult> {
@@ -40,6 +40,13 @@ export class GraphTraversalEngine {
     // 2. Query Live Account State for Root Address
     const rootState = await globalMultiChainRouter.queryAccount(cleanRoot, resolvedNetwork);
 
+    // Exact Inflow / Outflow / Volume Resolution: ZERO fake fallback values
+    const exactInflow = rootState.totalReceived > 0 
+      ? rootState.totalReceived 
+      : (initialStolenAmount > 0 ? initialStolenAmount : 0);
+    const exactOutflow = rootState.totalSent > 0 ? rootState.totalSent : 0;
+    const exactBalance = rootState.balanceUsd > 0 ? rootState.balanceUsd : 0;
+
     const rootNode: ForensicNode = {
       id: cleanRoot,
       label: `Target Address (${cleanRoot.slice(0, 6)}...${cleanRoot.slice(-4)})`,
@@ -48,9 +55,9 @@ export class GraphTraversalEngine {
       entityType: "VICTIM",
       riskLevel: "CRITICAL",
       hopDistance: 0,
-      totalInflowUsd: rootState.totalReceived > 0 ? rootState.totalReceived : initialStolenAmount,
-      totalOutflowUsd: rootState.totalSent,
-      balanceUsd: rootState.balanceUsd,
+      totalInflowUsd: exactInflow,
+      totalOutflowUsd: exactOutflow,
+      balanceUsd: exactBalance,
       isDestinationVault: false,
       assetDetails: detectedAsset,
     };
@@ -64,7 +71,7 @@ export class GraphTraversalEngine {
     // 3. Process Outgoing Transfers from Root
     if (rootState.outgoingTransfers.length > 0) {
       const sweepEval = HeuristicEngine.evaluateVaspSweeping(
-        rootState.totalReceived || initialStolenAmount,
+        exactInflow > 0 ? exactInflow : exactOutflow,
         rootState.outgoingTransfers,
         resolvedNetwork
       );
@@ -89,9 +96,9 @@ export class GraphTraversalEngine {
             fiuRegistered: entityIdentity.fiuRegistered,
             riskLevel: isVault ? "CRITICAL" : entityIdentity.riskLevel,
             hopDistance: 1,
-            totalInflowUsd: tx.amount,
+            totalInflowUsd: tx.amount > 0 ? tx.amount : 0,
             totalOutflowUsd: 0,
-            balanceUsd: tx.amount,
+            balanceUsd: tx.amount > 0 ? tx.amount : 0,
             isDestinationVault: isVault,
             assetDetails: detectCryptoAsset(tx.toAddress),
             sweepDetails: sweepEval.isSwept ? {
@@ -110,12 +117,12 @@ export class GraphTraversalEngine {
           id: `edge-${tx.txHash.slice(0, 10)}`,
           source: cleanRoot,
           target: tx.toAddress,
-          amount: tx.amount,
+          amount: tx.amount > 0 ? tx.amount : 0,
           tokenSymbol: tx.tokenSymbol,
           timestamp: tx.timestamp,
           txHash: tx.txHash,
           network: resolvedNetwork,
-          isPrimaryFlow: tx.amount >= (rootState.totalReceived * 0.5),
+          isPrimaryFlow: exactInflow > 0 ? tx.amount >= (exactInflow * 0.5) : true,
           isSweeping: sweepEval.isSwept,
         });
 
@@ -153,8 +160,8 @@ export class GraphTraversalEngine {
             fiuRegistered: entityIdentity.fiuRegistered,
             riskLevel: entityIdentity.riskLevel,
             hopDistance: 1,
-            totalInflowUsd: inTx.amount,
-            totalOutflowUsd: inTx.amount,
+            totalInflowUsd: inTx.amount > 0 ? inTx.amount : 0,
+            totalOutflowUsd: inTx.amount > 0 ? inTx.amount : 0,
             balanceUsd: 0,
             isDestinationVault: false,
             assetDetails: detectCryptoAsset(inTx.fromAddress),
@@ -166,7 +173,7 @@ export class GraphTraversalEngine {
           id: `edge-in-${inTx.txHash.slice(0, 10)}`,
           source: inTx.fromAddress,
           target: cleanRoot,
-          amount: inTx.amount,
+          amount: inTx.amount > 0 ? inTx.amount : 0,
           tokenSymbol: inTx.tokenSymbol,
           timestamp: inTx.timestamp,
           txHash: inTx.txHash,
@@ -205,9 +212,9 @@ export class GraphTraversalEngine {
                 fiuRegistered: entityId.fiuRegistered,
                 riskLevel: isVault ? "CRITICAL" : entityId.riskLevel,
                 hopDistance: currentHop + 1,
-                totalInflowUsd: tx.amount,
+                totalInflowUsd: tx.amount > 0 ? tx.amount : 0,
                 totalOutflowUsd: 0,
-                balanceUsd: tx.amount,
+                balanceUsd: tx.amount > 0 ? tx.amount : 0,
                 isDestinationVault: isVault,
                 assetDetails: detectCryptoAsset(tx.toAddress),
               };
@@ -218,7 +225,7 @@ export class GraphTraversalEngine {
               id: `edge-${tx.txHash.slice(0, 10)}`,
               source: currentAddr,
               target: tx.toAddress,
-              amount: tx.amount,
+              amount: tx.amount > 0 ? tx.amount : 0,
               tokenSymbol: tx.tokenSymbol,
               timestamp: tx.timestamp,
               txHash: tx.txHash,
@@ -261,6 +268,9 @@ export class GraphTraversalEngine {
       )
     ).map(b => b.toString(16).padStart(2, "0")).join("");
 
+    // Accurate Total Volume Calculation (No random fallback numbers)
+    let totalVolume = exactInflow > 0 ? exactInflow : (exactOutflow > 0 ? exactOutflow : exactBalance);
+
     return {
       rootAddress: cleanRoot,
       network: resolvedNetwork,
@@ -269,7 +279,7 @@ export class GraphTraversalEngine {
       edges,
       maxHops,
       traversalDurationMs: duration,
-      totalVolumeTrackedUsd: rootState.totalReceived > 0 ? rootState.totalReceived : (rootState.totalSent > 0 ? rootState.totalSent : initialStolenAmount),
+      totalVolumeTrackedUsd: totalVolume,
       destinationVasp: destinationVaspInfo,
       highRiskEntitiesFound: Array.from(highRiskFound),
       sha256StateHash,
