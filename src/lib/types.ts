@@ -1,4 +1,4 @@
-export type BlockchainNetwork = "ETH" | "TRON" | "POLYGON" | "BSC";
+export type BlockchainNetwork = "ETH" | "TRON" | "BTC" | "SOL" | "POLYGON" | "BASE" | "BSC";
 
 export type EntityType = 
   | "VICTIM" 
@@ -15,29 +15,29 @@ export interface TransactionRecord {
   txHash: string;
   fromAddress: string;
   toAddress: string;
-  amount: number; // in USDT / USD
-  tokenSymbol: "USDT" | "USDC" | "ETH" | "TRX";
+  amount: number; // in USDT / USD / token value
+  tokenSymbol: "USDT" | "USDC" | "ETH" | "TRX" | "BTC" | "SOL";
   timestamp: string; // ISO 8601 UTC
   blockNumber: number;
   network: BlockchainNetwork;
   gasRefillDetected?: boolean;
   gasRefillTxHash?: string;
   gasRefillAmount?: number;
-  gasRefillAsset?: "ETH" | "TRX";
+  gasRefillAsset?: string;
   isSweepingTx?: boolean;
-  peelChainRatio?: number; // % of funds moving to primary recipient
+  peelChainRatio?: number;
 }
 
 export interface ForensicNode {
-  id: string; // Wallet address
-  label: string; // Display name / ENS / Shortened addr
+  id: string;
+  label: string;
   fullAddress: string;
   network: BlockchainNetwork;
   entityType: EntityType;
-  entityName?: string; // e.g. "Binance", "CoinDCX", "Tornado Cash"
+  entityName?: string;
   fiuRegistered?: boolean;
   riskLevel: RiskLevel;
-  hopDistance: number; // 0 for victim, 1..5 for mules
+  hopDistance: number;
   totalInflowUsd: number;
   totalOutflowUsd: number;
   balanceUsd: number;
@@ -62,7 +62,7 @@ export interface ForensicEdge {
   timestamp: string;
   txHash: string;
   network: BlockchainNetwork;
-  isPrimaryFlow: boolean; // >= 80% volume
+  isPrimaryFlow: boolean;
   isSweeping: boolean;
 }
 
@@ -82,7 +82,7 @@ export interface GraphTraceResult {
     fiuNumber?: string;
     complianceEmail: string;
     detectedAt: string;
-    confidenceScore: number; // 0 to 100%
+    confidenceScore: number;
   };
   highRiskEntitiesFound: string[];
   sha256StateHash: string;
@@ -132,3 +132,5 @@ export interface Section94NoticeData {
     bsaSection63Clause: string;
   };
 }
+
+export type ActiveTab = "overview" | "graph" | "wallet" | "vasp" | "cases";
