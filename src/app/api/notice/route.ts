@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { BnssNoticeGenerator } from "@/lib/legal/bnss-notice";
 import { GraphTraceResult } from "@/lib/types";
 
+export const dynamic = "force-dynamic";
+export const maxDuration = 30;
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();

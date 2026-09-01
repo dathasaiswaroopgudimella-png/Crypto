@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { KNOWN_VASP_REGISTRY, KNOWN_HIGH_RISK_ENTITIES } from "@/lib/constants";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   return NextResponse.json({
     success: true,

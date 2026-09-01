@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { globalGraphEngine } from "@/lib/graph-engine";
 
+export const dynamic = "force-dynamic";
+export const maxDuration = 30;
+
 export async function POST(req: NextRequest) {
   try {
     const { address, network, stolenAmount, isPresetCase } = await req.json();
@@ -10,7 +13,7 @@ export async function POST(req: NextRequest) {
     const result = await globalGraphEngine.traceFraudPath(
       address,
       network,
-      stolenAmount || 100000,
+      stolenAmount || 0,
       5,
       isPresetCase || false
     );
