@@ -3,7 +3,7 @@ import { globalGraphEngine } from "@/lib/graph-engine";
 
 export async function POST(req: NextRequest) {
   try {
-    const { address, network, stolenAmount } = await req.json();
+    const { address, network, stolenAmount, isPresetCase } = await req.json();
     if (!address) {
       return NextResponse.json({ error: "Wallet address is required." }, { status: 400 });
     }
@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
       network,
       stolenAmount || 100000,
       5,
-      true
+      isPresetCase || false
     );
     return NextResponse.json({ success: true, data: result });
   } catch (error: any) {

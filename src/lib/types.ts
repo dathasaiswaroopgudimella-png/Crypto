@@ -1,4 +1,4 @@
-export type BlockchainNetwork = "ETH" | "TRON" | "BTC" | "POLYGON" | "BASE" | "SOL";
+export type BlockchainNetwork = "ETH" | "TRON" | "BTC" | "POLYGON" | "BASE" | "SOL" | "UNKNOWN";
 
 export type EntityType = 
   | "VICTIM" 
@@ -11,21 +11,28 @@ export type EntityType =
 
 export type RiskLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
+export interface AssetDetectionResult {
+  network: BlockchainNetwork;
+  chainName: string;
+  asset: string;
+  standard: string;
+  confidence: string;
+  explorerUrl: string;
+}
+
 export interface TransactionRecord {
   txHash: string;
   fromAddress: string;
   toAddress: string;
   amount: number;
-  tokenSymbol: "USDT" | "USDC" | "ETH" | "TRX" | "BTC" | "SOL";
+  tokenSymbol: string;
   timestamp: string;
   blockNumber: number;
   network: BlockchainNetwork;
   gasRefillDetected?: boolean;
-  gasRefillTxHash?: string;
   gasRefillAmount?: number;
   gasRefillAsset?: string;
   isSweepingTx?: boolean;
-  peelChainRatio?: number;
 }
 
 export interface ForensicNode {
@@ -42,6 +49,7 @@ export interface ForensicNode {
   totalOutflowUsd: number;
   balanceUsd: number;
   isDestinationVault: boolean;
+  assetDetails?: AssetDetectionResult;
   sweepDetails?: {
     microGasRefill: boolean;
     gasRefillSource?: string;
@@ -69,6 +77,7 @@ export interface ForensicEdge {
 export interface GraphTraceResult {
   rootAddress: string;
   network: BlockchainNetwork;
+  detectedAsset?: AssetDetectionResult;
   nodes: ForensicNode[];
   edges: ForensicEdge[];
   maxHops: number;

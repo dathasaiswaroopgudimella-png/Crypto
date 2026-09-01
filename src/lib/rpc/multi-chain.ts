@@ -1,9 +1,10 @@
-import { BlockchainNetwork, TransactionRecord } from "../types";
+import { BlockchainNetwork, TransactionRecord, AssetDetectionResult } from "../types";
 import { globalTxCache } from "./lru-cache";
 
 export interface AccountStateResult {
   address: string;
   network: BlockchainNetwork;
+  detectedAsset: AssetDetectionResult;
   balance: number;
   balanceUsd: number;
   totalReceived: number;
@@ -11,6 +12,73 @@ export interface AccountStateResult {
   txCount: number;
   outgoingTransfers: TransactionRecord[];
   incomingTransfers: TransactionRecord[];
+}
+
+export function detectCryptoAsset(address: string): AssetDetectionResult {
+  const clean = address.trim();
+  if (clean.startsWith("0x") && clean.length === 42) {
+    return {
+      network: "ETH",
+      chainName: "Ethereum & EVM Compatible",
+      asset: "Ether (ETH) / Tether (USDT) / USDC",
+      standard: "ERC-20 / EVM",
+      confidence: "100%",
+      explorerUrl: `https://eth.blockscout.com/address/${clean}`,
+    };
+  } else if (clean.startsWith("T") && clean.length === 34) {
+    return {
+      network: "TRON",
+      chainName: "TRON Network",
+      asset: "Tether (USDT-TRC20) / Tronix (TRX)",
+      standard: "TRC-20 / TRC-10",
+      confidence: "100%",
+      explorerUrl: `https://tronscan.org/#/address/${clean}`,
+    };
+  } else if (clean.startsWith("bc1q") || clean.startsWith("bc1p")) {
+    return {
+      network: "BTC",
+      chainName: "Bitcoin Network (SegWit)",
+      asset: "Bitcoin (BTC)",
+      standard: "Native SegWit (Bech32)",
+      confidence: "100%",
+      explorerUrl: `https://www.blockchain.com/explorer/addresses/btc/${clean}`,
+    };
+  } else if (clean.startsWith("1") && clean.length >= 26 && clean.length <= 35) {
+    return {
+      network: "BTC",
+      chainName: "Bitcoin Network (Legacy)",
+      asset: "Bitcoin (BTC)",
+      standard: "P2PKH Legacy",
+      confidence: "100%",
+      explorerUrl: `https://www.blockchain.com/explorer/addresses/btc/${clean}`,
+    };
+  } else if (clean.startsWith("3") && clean.length >= 26 && clean.length <= 35) {
+    return {
+      network: "BTC",
+      chainName: "Bitcoin Network (Multisig)",
+      asset: "Bitcoin (BTC)",
+      standard: "P2SH Nested SegWit",
+      confidence: "100%",
+      explorerUrl: `https://www.blockchain.com/explorer/addresses/btc/${clean}`,
+    };
+  } else if (clean.length >= 32 && clean.length <= 44 && !/[0OIl]/.test(clean)) {
+    return {
+      network: "SOL",
+      chainName: "Solana Mainnet",
+      asset: "Solana (SOL) & SPL Tokens",
+      standard: "SPL Program",
+      confidence: "98%",
+      explorerUrl: `https://solscan.io/account/${clean}`,
+    };
+  }
+  return {
+    network: "UNKNOWN",
+    chainName: "Unknown Ledger",
+    asset: "Custom Token",
+    standard: "Unspecified",
+    confidence: "0%",
+    explorerUrl: "#",
+  };
 }
 
 export class MultiChainForensicRouter {
@@ -22,23 +90,15 @@ export class MultiChainForensicRouter {
     this.blockchainComUrl = process.env.BLOCKCHAIN_COM_GATEWAY_URL || "https://api.blockchain.info/explorer-gateway-kt";
   }
 
-  detectNetwork(address: string): BlockchainNetwork {
-    const clean = address.trim();
-    if (clean.startsWith("0x") && clean.length === 42) return "ETH";
-    if (clean.startsWith("T") && clean.length === 34) return "TRON";
-    if (clean.startsWith("bc1") || clean.startsWith("1") || clean.startsWith("3")) return "BTC";
-    if (clean.length >= 32 && clean.length <= 44 && !clean.includes("0") && !clean.includes("O") && !clean.includes("I") && !clean.includes("l")) return "SOL";
-    return "ETH";
-  }
-
   /**
-   * Bitcoin Live Ingestion via Blockchain.info Raw & Gateway
+   * Bitcoin Live Ingestion
    */
   async queryBitcoinAccount(address: string): Promise<AccountStateResult> {
     const cacheKey = `btc:${address}`;
     const cached = globalTxCache.get(cacheKey);
     if (cached) return cached;
 
+    const detectedAsset = detectCryptoAsset(address);
     const btcPriceUsd = 88000;
     const outgoing: TransactionRecord[] = [];
     const incoming: TransactionRecord[] = [];
@@ -62,7 +122,6 @@ export class MultiChainForensicRouter {
           const timestamp = tx.time ? new Date(tx.time * 1000).toISOString() : new Date().toISOString();
           const blockNumber = tx.block_height || 0;
 
-          // Check if address is in inputs (outgoing)
           const isSender = (tx.inputs || []).some((inp: any) => inp.prev_out?.addr === address);
           if (isSender) {
             for (const out of tx.out || []) {
@@ -81,9 +140,8 @@ export class MultiChainForensicRouter {
               }
             }
           } else {
-            // Incoming
             let recvVal = 0;
-            let sender = "External Sender";
+            let sender = "External BTC Funding Node";
             if (tx.inputs?.[0]?.prev_out?.addr) sender = tx.inputs[0].prev_out.addr;
             for (const out of tx.out || []) {
               if (out.addr === address) recvVal += (out.value || 0) / 1e8;
@@ -104,12 +162,13 @@ export class MultiChainForensicRouter {
         }
       }
     } catch (err) {
-      console.warn("[BTC Router] Query error:", err);
+      console.warn("[BTC Live Query]", err);
     }
 
     const result: AccountStateResult = {
       address,
       network: "BTC",
+      detectedAsset,
       balance,
       balanceUsd: Math.round(balance * btcPriceUsd * 100) / 100,
       totalReceived: Math.round(totalReceived * btcPriceUsd * 100) / 100,
@@ -124,7 +183,7 @@ export class MultiChainForensicRouter {
   }
 
   /**
-   * EVM Live Ingestion via Blockscout v2 REST (Ethereum, Polygon, Arbitrum, Optimism)
+   * EVM Live Ingestion via Blockscout v2 REST
    */
   async queryEvmAccount(address: string, network: "ETH" | "POLYGON" | "BASE" = "ETH"): Promise<AccountStateResult> {
     const clean = address.toLowerCase();
@@ -132,6 +191,7 @@ export class MultiChainForensicRouter {
     const cached = globalTxCache.get(cacheKey);
     if (cached) return cached;
 
+    const detectedAsset = detectCryptoAsset(address);
     const host = network === "POLYGON" ? "polygon.blockscout.com" : "eth.blockscout.com";
     const outgoing: TransactionRecord[] = [];
     const incoming: TransactionRecord[] = [];
@@ -140,7 +200,7 @@ export class MultiChainForensicRouter {
     let totalOutflow = 0;
 
     try {
-      // 1. Fetch token transfers (ERC-20 USDT/USDC/DAI)
+      // 1. ERC-20 token transfers
       const tokenUrl = `https://${host}/api/v2/addresses/${clean}/token-transfers`;
       const res = await fetch(tokenUrl, { headers: { "User-Agent": "Mozilla/5.0" } });
       if (res.ok) {
@@ -184,22 +244,67 @@ export class MultiChainForensicRouter {
         }
       }
 
-      // 2. Fetch native balance & account info
+      // 2. Native transactions if token transfers are empty
+      if (outgoing.length === 0 && incoming.length === 0) {
+        const txUrl = `https://${host}/api/v2/addresses/${clean}/transactions`;
+        const txRes = await fetch(txUrl, { headers: { "User-Agent": "Mozilla/5.0" } });
+        if (txRes.ok) {
+          const txJson = await txRes.json();
+          const ethPrice = 2700;
+          for (const item of txJson.items || []) {
+            const fromAddr = item.from?.hash?.toLowerCase() || "";
+            const toAddr = item.to?.hash?.toLowerCase() || "";
+            const valEth = Number(BigInt(item.value || "0")) / 1e18;
+            const valUsd = Math.round(valEth * ethPrice * 100) / 100;
+            const timestamp = item.timestamp || new Date().toISOString();
+            const blockNumber = Number(item.block_number || 0);
+            const txHash = item.hash || "0x...";
+
+            if (fromAddr === clean && toAddr) {
+              totalOutflow += valUsd;
+              outgoing.push({
+                txHash,
+                fromAddress: clean,
+                toAddress: toAddr,
+                amount: valUsd,
+                tokenSymbol: "ETH",
+                timestamp,
+                blockNumber,
+                network,
+              });
+            } else if (toAddr === clean && fromAddr) {
+              totalInflow += valUsd;
+              incoming.push({
+                txHash,
+                fromAddress: fromAddr,
+                toAddress: clean,
+                amount: valUsd,
+                tokenSymbol: "ETH",
+                timestamp,
+                blockNumber,
+                network,
+              });
+            }
+          }
+        }
+      }
+
+      // 3. Address balance
       const accUrl = `https://${host}/api/v2/addresses/${clean}`;
       const accRes = await fetch(accUrl, { headers: { "User-Agent": "Mozilla/5.0" } });
       if (accRes.ok) {
         const accJson = await accRes.json();
-        const ethPrice = Number(accJson.exchange_rate || 2700);
         const ethBal = Number(BigInt(accJson.coin_balance || "0")) / 1e18;
-        balanceUsd = Math.round(ethBal * ethPrice * 100) / 100;
+        balanceUsd = Math.round(ethBal * 2700 * 100) / 100;
       }
     } catch (err) {
-      console.warn("[EVM Router] Query error:", err);
+      console.warn("[EVM Live Query]", err);
     }
 
     const result: AccountStateResult = {
       address: clean,
       network,
+      detectedAsset,
       balance: balanceUsd,
       balanceUsd,
       totalReceived: Math.round(totalInflow * 100) / 100,
@@ -221,6 +326,7 @@ export class MultiChainForensicRouter {
     const cached = globalTxCache.get(cacheKey);
     if (cached) return cached;
 
+    const detectedAsset = detectCryptoAsset(address);
     const outgoing: TransactionRecord[] = [];
     const incoming: TransactionRecord[] = [];
     let totalInflow = 0;
@@ -269,12 +375,13 @@ export class MultiChainForensicRouter {
         }
       }
     } catch (err) {
-      console.warn("[TRON Router] Query error:", err);
+      console.warn("[TRON Live Query]", err);
     }
 
     const result: AccountStateResult = {
       address,
       network: "TRON",
+      detectedAsset,
       balance: Math.max(0, totalInflow - totalOutflow),
       balanceUsd: Math.max(0, totalInflow - totalOutflow),
       totalReceived: Math.round(totalInflow * 100) / 100,
@@ -288,11 +395,8 @@ export class MultiChainForensicRouter {
     return result;
   }
 
-  /**
-   * Universal Dispatcher
-   */
   async queryAccount(address: string, network?: BlockchainNetwork): Promise<AccountStateResult> {
-    const net = network || this.detectNetwork(address);
+    const net = network && network !== "UNKNOWN" ? network : detectCryptoAsset(address).network;
     if (net === "BTC") return await this.queryBitcoinAccount(address);
     if (net === "TRON") return await this.queryTronAccount(address);
     return await this.queryEvmAccount(address, net === "POLYGON" ? "POLYGON" : "ETH");

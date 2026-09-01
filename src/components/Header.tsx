@@ -1,8 +1,10 @@
 'use client';
 
-import { Search, Shield, ChevronDown, Layers } from "lucide-react";
+import { useMemo } from "react";
+import { Search, Shield, ChevronDown, CheckCircle2, ArrowUpRight } from "lucide-react";
 import { AUTHENTIC_FORENSIC_CASES } from "@/lib/forensic-cases";
 import { BlockchainNetwork } from "@/lib/types";
+import { detectCryptoAsset } from "@/lib/rpc/multi-chain";
 
 type Tab = "overview" | "trace" | "vasp" | "legal";
 
@@ -36,6 +38,11 @@ export default function Header({
   isLoading,
   onSelectCase,
 }: HeaderProps) {
+  const liveAssetInfo = useMemo(() => {
+    if (!searchAddress.trim()) return null;
+    return detectCryptoAsset(searchAddress.trim());
+  }, [searchAddress]);
+
   return (
     <header style={{ background: "#0f1629", borderBottom: "1px solid #1e2d45", position: "sticky", top: 0, zIndex: 50 }}>
       {/* Top identity bar */}
@@ -64,99 +71,136 @@ export default function Header({
       </div>
 
       {/* Search & network selector bar */}
-      <div style={{ padding: "12px 24px", display: "flex", alignItems: "center", gap: 10 }}>
-        {/* Network Selector */}
-        <div style={{ position: "relative" }}>
-          <select
-            value={selectedNetwork}
-            onChange={(e) => setSelectedNetwork(e.target.value as any)}
-            style={{
-              background: "#111827",
-              border: "1px solid #1e2d45",
-              borderRadius: 8,
-              padding: "9px 32px 9px 12px",
-              fontSize: 12,
-              fontWeight: 600,
-              color: "#60a5fa",
-              cursor: "pointer",
-              appearance: "none",
-            }}
-          >
-            <option value="AUTO">Auto Detect Ledger</option>
-            <option value="ETH">Ethereum (ETH / ERC-20)</option>
-            <option value="TRON">TRON (TRX / TRC-20 USDT)</option>
-            <option value="BTC">Bitcoin (BTC / UTXO)</option>
-            <option value="POLYGON">Polygon (MATIC / USDT)</option>
-            <option value="SOL">Solana (SOL / SPL)</option>
-          </select>
-          <ChevronDown size={14} color="#475569" style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
-        </div>
+      <div style={{ padding: "12px 24px", display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          {/* Network Selector */}
+          <div style={{ position: "relative" }}>
+            <select
+              value={selectedNetwork}
+              onChange={(e) => setSelectedNetwork(e.target.value as any)}
+              style={{
+                background: "#111827",
+                border: "1px solid #1e2d45",
+                borderRadius: 8,
+                padding: "9px 32px 9px 12px",
+                fontSize: 12,
+                fontWeight: 600,
+                color: "#60a5fa",
+                cursor: "pointer",
+                appearance: "none",
+              }}
+            >
+              <option value="AUTO">Auto Detect Ledger</option>
+              <option value="ETH">Ethereum (ETH / ERC-20)</option>
+              <option value="TRON">TRON (TRX / TRC-20 USDT)</option>
+              <option value="BTC">Bitcoin (BTC / UTXO)</option>
+              <option value="POLYGON">Polygon (MATIC / USDT)</option>
+              <option value="SOL">Solana (SOL / SPL)</option>
+            </select>
+            <ChevronDown size={14} color="#475569" style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
+          </div>
 
-        {/* Search input */}
-        <div style={{ position: "relative", flex: 1 }}>
-          <Search size={15} color="#475569" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }} />
-          <input
-            value={searchAddress}
-            onChange={(e) => setSearchAddress(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && onSearch()}
-            placeholder="Paste any live address — 0x... (ETH/Polygon), T... (TRON), bc1... (BTC), or Base58 (SOL) — to trace live ledger"
+          {/* Search input */}
+          <div style={{ position: "relative", flex: 1 }}>
+            <Search size={15} color="#475569" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }} />
+            <input
+              value={searchAddress}
+              onChange={(e) => setSearchAddress(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && onSearch()}
+              placeholder="Paste any live wallet address — 0x... (ETH/Polygon), T... (TRON), bc1... (BTC), or Base58 (SOL)"
+              style={{
+                width: "100%",
+                background: "#111827",
+                border: "1px solid #1e2d45",
+                borderRadius: 8,
+                padding: "9px 12px 9px 36px",
+                fontSize: 13,
+                color: "#f1f5f9",
+                fontFamily: "monospace",
+              }}
+            />
+          </div>
+
+          <button
+            onClick={onSearch}
+            disabled={isLoading}
             style={{
-              width: "100%",
-              background: "#111827",
-              border: "1px solid #1e2d45",
+              background: isLoading ? "#1e2d45" : "linear-gradient(135deg, #1d4ed8 0%, #0891b2 100%)",
+              border: "none",
               borderRadius: 8,
-              padding: "9px 12px 9px 36px",
+              padding: "9px 22px",
               fontSize: 13,
-              color: "#f1f5f9",
-              fontFamily: "monospace",
-            }}
-          />
-        </div>
-
-        <button
-          onClick={onSearch}
-          disabled={isLoading}
-          style={{
-            background: isLoading ? "#1e2d45" : "linear-gradient(135deg, #1d4ed8 0%, #0891b2 100%)",
-            border: "none",
-            borderRadius: 8,
-            padding: "9px 22px",
-            fontSize: 13,
-            fontWeight: 700,
-            color: "white",
-            cursor: isLoading ? "not-allowed" : "pointer",
-            opacity: isLoading ? 0.7 : 1,
-            whiteSpace: "nowrap",
-          }}
-        >
-          {isLoading ? "Tracing Live Ledger..." : "Trace Funds"}
-        </button>
-
-        {/* Benchmark Case Selector */}
-        <div style={{ position: "relative" }}>
-          <select
-            onChange={(e) => { if (e.target.value) onSelectCase(e.target.value); }}
-            defaultValue=""
-            style={{
-              background: "#111827",
-              border: "1px solid #1e2d45",
-              borderRadius: 8,
-              padding: "9px 32px 9px 12px",
-              fontSize: 12,
-              color: "#94a3b8",
-              cursor: "pointer",
-              appearance: "none",
+              fontWeight: 700,
+              color: "white",
+              cursor: isLoading ? "not-allowed" : "pointer",
+              opacity: isLoading ? 0.7 : 1,
+              whiteSpace: "nowrap",
             }}
           >
-            <option value="" disabled>Load Authentic Benchmark Case</option>
-            {AUTHENTIC_FORENSIC_CASES.map(c => (
-              <option key={c.caseId} value={c.initialSuspectAddress}>
-                {c.caseId} — {c.incidentType} (Rs. {(c.stolenAmountInr / 100000).toFixed(1)}L)
-              </option>
-            ))}
-          </select>
-          <ChevronDown size={14} color="#475569" style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
+            {isLoading ? "Tracing Live Ledger..." : "Trace Funds"}
+          </button>
+
+          {/* Benchmark Case Selector */}
+          <div style={{ position: "relative" }}>
+            <select
+              onChange={(e) => { if (e.target.value) onSelectCase(e.target.value); }}
+              defaultValue=""
+              style={{
+                background: "#111827",
+                border: "1px solid #1e2d45",
+                borderRadius: 8,
+                padding: "9px 32px 9px 12px",
+                fontSize: 12,
+                color: "#94a3b8",
+                cursor: "pointer",
+                appearance: "none",
+              }}
+            >
+              <option value="" disabled>Load Authentic Benchmark Case</option>
+              {AUTHENTIC_FORENSIC_CASES.map(c => (
+                <option key={c.caseId} value={c.initialSuspectAddress}>
+                  {c.caseId} — {c.incidentType} (Rs. {(c.stolenAmountInr / 100000).toFixed(1)}L)
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={14} color="#475569" style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
+          </div>
         </div>
+
+        {/* Live Detected Asset Telemetry Banner */}
+        {liveAssetInfo && liveAssetInfo.network !== "UNKNOWN" && (
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            background: "rgba(30, 45, 69, 0.4)",
+            border: "1px solid #1e2d45",
+            borderRadius: 6,
+            padding: "4px 12px",
+            fontSize: 11,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <CheckCircle2 size={12} color="#10b981" />
+              <span style={{ color: "#94a3b8" }}>Detected Asset:</span>
+              <strong style={{ color: "#f1f5f9" }}>{liveAssetInfo.asset}</strong>
+            </div>
+            <div style={{ color: "#475569" }}>|</div>
+            <div>
+              <span style={{ color: "#94a3b8" }}>Ledger:</span>{" "}
+              <span style={{ color: "#60a5fa" }}>{liveAssetInfo.chainName} ({liveAssetInfo.standard})</span>
+            </div>
+            <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 4 }}>
+              <a
+                href={liveAssetInfo.explorerUrl}
+                target="_blank"
+                rel="noreferrer"
+                style={{ color: "#38bdf8", textDecoration: "none", display: "flex", alignItems: "center", gap: 3 }}
+              >
+                View on Official Explorer <ArrowUpRight size={11} />
+              </a>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Tab navigation */}

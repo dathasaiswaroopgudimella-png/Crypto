@@ -17,7 +17,7 @@ export default function Home() {
   const [traceResult, setTraceResult] = useState<GraphTraceResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const runTrace = useCallback(async (address?: string) => {
+  const runTrace = useCallback(async (address?: string, isPreset: boolean = false) => {
     const target = (address || searchAddress).trim();
     if (!target) return;
 
@@ -29,7 +29,11 @@ export default function Home() {
       const res = await fetch("/api/trace", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: target, network: netParam }),
+        body: JSON.stringify({
+          address: target,
+          network: netParam,
+          isPresetCase: isPreset,
+        }),
       });
       const json = await res.json();
       if (json.success) {
@@ -44,7 +48,7 @@ export default function Home() {
 
   const handleSelectCase = useCallback((address: string) => {
     setSearchAddress(address);
-    runTrace(address);
+    runTrace(address, true);
   }, [runTrace]);
 
   const handleRequestNotice = useCallback(() => {
@@ -60,7 +64,7 @@ export default function Home() {
         setSearchAddress={setSearchAddress}
         selectedNetwork={selectedNetwork}
         setSelectedNetwork={setSelectedNetwork}
-        onSearch={() => runTrace()}
+        onSearch={() => runTrace(undefined, false)}
         isLoading={isLoading}
         onSelectCase={handleSelectCase}
       />

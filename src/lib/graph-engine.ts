@@ -1,6 +1,6 @@
 import { ForensicEdge, ForensicNode, GraphTraceResult, BlockchainNetwork } from "./types";
 import { HeuristicEngine } from "./heuristics";
-import { globalMultiChainRouter } from "./rpc/multi-chain";
+import { globalMultiChainRouter, detectCryptoAsset } from "./rpc/multi-chain";
 import { AUTHENTIC_FORENSIC_CASES } from "./forensic-cases";
 
 export class GraphTraversalEngine {
@@ -15,21 +15,24 @@ export class GraphTraversalEngine {
     const cleanRoot = rootAddress.trim();
 
     // 1. If explicitly requested as a benchmark preset case, load authentic benchmark dataset
-    for (const benchmark of AUTHENTIC_FORENSIC_CASES) {
-      if (
-        benchmark.initialSuspectAddress.toLowerCase() === cleanRoot.toLowerCase() ||
-        benchmark.caseId.toLowerCase() === cleanRoot.toLowerCase() ||
-        benchmark.complaintNumber.toLowerCase() === cleanRoot.toLowerCase()
-      ) {
-        const dur = Math.round(performance.now() - startTime) + 95;
-        return {
-          ...benchmark.graphData,
-          traversalDurationMs: dur,
-        };
+    if (isPresetCaseRequest) {
+      for (const benchmark of AUTHENTIC_FORENSIC_CASES) {
+        if (
+          benchmark.initialSuspectAddress.toLowerCase() === cleanRoot.toLowerCase() ||
+          benchmark.caseId.toLowerCase() === cleanRoot.toLowerCase() ||
+          benchmark.complaintNumber.toLowerCase() === cleanRoot.toLowerCase()
+        ) {
+          const dur = Math.round(performance.now() - startTime) + 95;
+          return {
+            ...benchmark.graphData,
+            traversalDurationMs: dur,
+          };
+        }
       }
     }
 
-    const resolvedNetwork = network || globalMultiChainRouter.detectNetwork(cleanRoot);
+    const detectedAsset = detectCryptoAsset(cleanRoot);
+    const resolvedNetwork = network && network !== "UNKNOWN" ? network : detectedAsset.network;
     const nodesMap = new Map<string, ForensicNode>();
     const edges: ForensicEdge[] = [];
     const highRiskFound = new Set<string>();
@@ -49,6 +52,7 @@ export class GraphTraversalEngine {
       totalOutflowUsd: rootState.totalSent,
       balanceUsd: rootState.balanceUsd,
       isDestinationVault: false,
+      assetDetails: detectedAsset,
     };
     nodesMap.set(cleanRoot.toLowerCase(), rootNode);
 
@@ -89,6 +93,7 @@ export class GraphTraversalEngine {
             totalOutflowUsd: 0,
             balanceUsd: tx.amount,
             isDestinationVault: isVault,
+            assetDetails: detectCryptoAsset(tx.toAddress),
             sweepDetails: sweepEval.isSwept ? {
               microGasRefill: sweepEval.microGasRefill,
               gasAmount: sweepEval.gasAmount,
@@ -133,7 +138,6 @@ export class GraphTraversalEngine {
         }
       }
     } else if (rootState.incomingTransfers.length > 0) {
-      // 4. If no outgoing, display incoming funding counterparties
       for (const inTx of rootState.incomingTransfers.slice(0, 6)) {
         const senderAddr = inTx.fromAddress.toLowerCase();
         const entityIdentity = HeuristicEngine.identifyKnownEntity(senderAddr, resolvedNetwork);
@@ -153,6 +157,7 @@ export class GraphTraversalEngine {
             totalOutflowUsd: inTx.amount,
             balanceUsd: 0,
             isDestinationVault: false,
+            assetDetails: detectCryptoAsset(inTx.fromAddress),
           };
           nodesMap.set(senderAddr, senderNode);
         }
@@ -172,7 +177,7 @@ export class GraphTraversalEngine {
       }
     }
 
-    // 5. Multi-Hop BFS Traversal
+    // 4. Multi-Hop BFS Traversal for Downstream Hops
     while (queue.length > 0) {
       const [currentAddr, currentHop, currentAmount] = queue.shift()!;
       if (currentHop >= maxHops) continue;
@@ -204,6 +209,7 @@ export class GraphTraversalEngine {
                 totalOutflowUsd: 0,
                 balanceUsd: tx.amount,
                 isDestinationVault: isVault,
+                assetDetails: detectCryptoAsset(tx.toAddress),
               };
               nodesMap.set(nextTarget, node);
             }
@@ -258,6 +264,7 @@ export class GraphTraversalEngine {
     return {
       rootAddress: cleanRoot,
       network: resolvedNetwork,
+      detectedAsset,
       nodes: nodeList,
       edges,
       maxHops,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from "react";
+import { useState, useEffect } from "react";
 import ReactFlow, {
   Background,
   Controls,
@@ -9,13 +9,13 @@ import ReactFlow, {
   Edge,
   useNodesState,
   useEdgesState,
-  addEdge,
-  Connection,
   BackgroundVariant,
+  Handle,
+  Position,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { GraphTraceResult, ForensicNode } from "@/lib/types";
-import { Shield, AlertTriangle, TrendingDown, ArrowRight, X, Zap } from "lucide-react";
+import { Shield, AlertTriangle, X, Zap, ExternalLink } from "lucide-react";
 
 interface TraceTabProps {
   traceResult: GraphTraceResult | null;
@@ -41,10 +41,13 @@ function ForensicNodeCard({ data }: { data: ForensicNode }) {
       border: `1.5px solid ${palette.border}`,
       borderRadius: 10,
       padding: "12px 14px",
-      minWidth: 200,
-      maxWidth: 240,
-      boxShadow: `0 0 12px ${palette.border}20`,
+      minWidth: 220,
+      maxWidth: 250,
+      boxShadow: `0 0 14px ${palette.border}25`,
+      position: "relative",
     }}>
+      <Handle type="target" position={Position.Left} style={{ background: palette.border, width: 8, height: 8 }} />
+
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
         <div style={{
           width: 6, height: 6, borderRadius: "50%",
@@ -54,21 +57,25 @@ function ForensicNodeCard({ data }: { data: ForensicNode }) {
         <div style={{ fontSize: 10, fontWeight: 700, color: palette.text, letterSpacing: "0.05em" }}>
           {data.entityType.replace(/_/g, " ")}
         </div>
-        {data.fiuRegistered && (
-          <span style={{
-            fontSize: 9, padding: "1px 5px", borderRadius: 4,
-            background: "rgba(16,185,129,0.15)", color: "#34d399",
-            border: "1px solid rgba(16,185,129,0.3)", fontWeight: 600,
-          }}>FIU</span>
-        )}
+        <span style={{
+          fontSize: 9, padding: "1px 5px", borderRadius: 4,
+          background: "rgba(59,130,246,0.15)", color: "#60a5fa",
+          border: "1px solid rgba(59,130,246,0.3)", fontWeight: 700,
+          marginLeft: "auto",
+        }}>
+          {data.network}
+        </span>
       </div>
+
       <div style={{ fontSize: 12, fontWeight: 600, color: "#f1f5f9", marginBottom: 4 }}>
         {data.entityName || data.label}
       </div>
-      <div style={{ fontFamily: "monospace", fontSize: 10, color: "#475569", marginBottom: 8 }}>
+
+      <div style={{ fontFamily: "monospace", fontSize: 10, color: "#94a3b8", marginBottom: 8 }}>
         {data.fullAddress.slice(0, 10)}...{data.fullAddress.slice(-6)}
       </div>
-      <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid #1e2d45", paddingTop: 8 }}>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, borderTop: "1px solid #1e2d45", paddingTop: 8 }}>
         <div>
           <div style={{ fontSize: 9, color: "#475569" }}>Inflow</div>
           <div style={{ fontSize: 11, fontWeight: 600, color: "#10b981" }}>${data.totalInflowUsd.toLocaleString()}</div>
@@ -77,11 +84,8 @@ function ForensicNodeCard({ data }: { data: ForensicNode }) {
           <div style={{ fontSize: 9, color: "#475569" }}>Balance</div>
           <div style={{ fontSize: 11, fontWeight: 600, color: palette.text }}>${data.balanceUsd.toLocaleString()}</div>
         </div>
-        <div>
-          <div style={{ fontSize: 9, color: "#475569" }}>Hop</div>
-          <div style={{ fontSize: 11, fontWeight: 600, color: "#94a3b8" }}>{data.hopDistance}</div>
-        </div>
       </div>
+
       {data.sweepDetails && (
         <div style={{
           marginTop: 8, padding: "6px 8px", borderRadius: 6,
@@ -89,9 +93,11 @@ function ForensicNodeCard({ data }: { data: ForensicNode }) {
           fontSize: 10, color: "#fca5a5",
         }}>
           <Zap size={10} style={{ display: "inline", marginRight: 4 }} />
-          Micro-gas refill + {data.sweepDetails.sweptPercentage}% sweep detected
+          Micro-gas refill + {data.sweepDetails.sweptPercentage}% sweep
         </div>
       )}
+
+      <Handle type="source" position={Position.Right} style={{ background: palette.border, width: 8, height: 8 }} />
     </div>
   );
 }
@@ -114,8 +120,8 @@ function buildReactFlowElements(trace: GraphTraceResult) {
       type: "forensic",
       data: fn,
       position: {
-        x: hop * 280,
-        y: colCount * 180,
+        x: hop * 320,
+        y: colCount * 190,
       },
     });
   });
@@ -128,8 +134,7 @@ function buildReactFlowElements(trace: GraphTraceResult) {
       animated: fe.isPrimaryFlow,
       style: {
         stroke: fe.isSweeping ? "#ef4444" : fe.isPrimaryFlow ? "#3b82f6" : "#475569",
-        strokeWidth: fe.isPrimaryFlow ? 2 : 1,
-        strokeDasharray: fe.isSweeping ? "none" : undefined,
+        strokeWidth: fe.isPrimaryFlow ? 2.5 : 1.5,
       },
       label: `${fe.tokenSymbol} $${fe.amount.toLocaleString()}`,
       labelStyle: { fontSize: 10, fill: "#94a3b8", fontFamily: "monospace" },
@@ -145,15 +150,15 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice }: Tr
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState([]);
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState([]);
 
-  const prevHash = useCallback((trace: GraphTraceResult) => {
-    const { nodes, edges } = buildReactFlowElements(trace);
-    setRfNodes(nodes);
-    setRfEdges(edges);
-  }, []);
-
-  if (traceResult && rfNodes.length === 0 && traceResult.nodes.length > 0) {
-    prevHash(traceResult);
-  }
+  // Crucial Ralph Loop Fix: Synchronize React Flow whenever traceResult updates!
+  useEffect(() => {
+    if (traceResult && traceResult.nodes && traceResult.nodes.length > 0) {
+      const { nodes, edges } = buildReactFlowElements(traceResult);
+      setRfNodes(nodes);
+      setRfEdges(edges);
+      setSelectedNode(null);
+    }
+  }, [traceResult, setRfNodes, setRfEdges]);
 
   if (isLoading) {
     return (
@@ -163,8 +168,8 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice }: Tr
           border: "3px solid #1e2d45", borderTopColor: "#3b82f6",
           animation: "spin 0.8s linear infinite",
         }} />
-        <div style={{ fontSize: 14, color: "#94a3b8" }}>Running multi-chain forensic traversal...</div>
-        <div style={{ fontSize: 12, color: "#475569" }}>Querying live blockchain connectors</div>
+        <div style={{ fontSize: 14, color: "#94a3b8" }}>Running live multi-chain forensic traversal...</div>
+        <div style={{ fontSize: 12, color: "#475569" }}>Querying live consensus nodes and token transfer logs</div>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
@@ -175,7 +180,7 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice }: Tr
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "60vh", gap: 12 }}>
         <Shield size={40} color="#1e2d45" />
         <div style={{ fontSize: 16, fontWeight: 600, color: "#475569" }}>No active trace</div>
-        <div style={{ fontSize: 13, color: "#374151" }}>Enter a wallet address above or select a benchmark case to begin</div>
+        <div style={{ fontSize: 13, color: "#374151" }}>Enter a wallet address above or select an authentic benchmark case to begin</div>
       </div>
     );
   }
@@ -192,8 +197,8 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice }: Tr
           nodeTypes={nodeTypes}
           onNodeClick={(_, node) => setSelectedNode(node.data)}
           fitView
-          fitViewOptions={{ padding: 0.15 }}
-          minZoom={0.4}
+          fitViewOptions={{ padding: 0.2 }}
+          minZoom={0.3}
           maxZoom={2}
           style={{ background: "#0a0e1a" }}
         >
@@ -218,14 +223,14 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice }: Tr
           padding: "10px 16px",
           display: "flex",
           alignItems: "center",
-          gap: 24,
+          gap: 20,
         }}>
           {[
-            { label: "Root Address", value: `${traceResult.rootAddress.slice(0, 8)}...${traceResult.rootAddress.slice(-6)}`, mono: true },
+            { label: "Target Address", value: `${traceResult.rootAddress.slice(0, 8)}...${traceResult.rootAddress.slice(-6)}`, mono: true },
+            { label: "Detected Asset", value: traceResult.detectedAsset?.asset || traceResult.network },
             { label: "Volume Tracked", value: `$${traceResult.totalVolumeTrackedUsd.toLocaleString()}` },
             { label: "Hops", value: `${traceResult.nodes.length - 1}` },
-            { label: "Attribution", value: traceResult.destinationVasp?.name || "Pending", highlight: !!traceResult.destinationVasp },
-            { label: "Confidence", value: traceResult.destinationVasp ? `${traceResult.destinationVasp.confidenceScore}%` : "—" },
+            { label: "Attribution", value: traceResult.destinationVasp?.name || "Independent Wallet", highlight: !!traceResult.destinationVasp },
             { label: "Traversal Time", value: `${traceResult.traversalDurationMs}ms` },
           ].map(m => (
             <div key={m.label} style={{ whiteSpace: "nowrap" }}>
@@ -269,7 +274,7 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice }: Tr
       {/* Node Inspector Drawer */}
       {selectedNode && (
         <div style={{
-          width: 320,
+          width: 340,
           background: "#0f1629",
           borderLeft: "1px solid #1e2d45",
           overflowY: "auto",
@@ -296,12 +301,28 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice }: Tr
               </div>
             </div>
 
+            {selectedNode.assetDetails && (
+              <div>
+                <div style={{ fontSize: 11, color: "#475569", marginBottom: 4 }}>Detected Cryptocurrency</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#38bdf8" }}>{selectedNode.assetDetails.asset}</div>
+                <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{selectedNode.assetDetails.chainName}</div>
+                <a
+                  href={selectedNode.assetDetails.explorerUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ fontSize: 11, color: "#60a5fa", display: "inline-flex", alignItems: "center", gap: 3, marginTop: 4, textDecoration: "none" }}
+                >
+                  Open on Official Explorer <ExternalLink size={10} />
+                </a>
+              </div>
+            )}
+
             {selectedNode.entityName && (
               <div>
                 <div style={{ fontSize: 11, color: "#475569", marginBottom: 4 }}>Identified Entity</div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "#10b981" }}>{selectedNode.entityName}</div>
                 {selectedNode.fiuRegistered && (
-                  <div style={{ fontSize: 11, color: "#34d399", marginTop: 2 }}>FIU-IND Registered VASP</div>
+                  <div style={{ fontSize: 11, color: "#34d399", marginTop: 2 }}>FIU-IND Registered Exchange</div>
                 )}
               </div>
             )}
@@ -311,7 +332,7 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice }: Tr
                 { label: "Total Inflow", value: `$${selectedNode.totalInflowUsd.toLocaleString()}`, color: "#10b981" },
                 { label: "Total Outflow", value: `$${selectedNode.totalOutflowUsd.toLocaleString()}`, color: "#ef4444" },
                 { label: "Remaining Balance", value: `$${selectedNode.balanceUsd.toLocaleString()}`, color: "#f59e0b" },
-                { label: "Hop Distance", value: `${selectedNode.hopDistance} hops from victim`, color: "#94a3b8" },
+                { label: "Hop Distance", value: `${selectedNode.hopDistance} hops`, color: "#94a3b8" },
               ].map(m => (
                 <div key={m.label}>
                   <div style={{ fontSize: 10, color: "#475569", marginBottom: 4 }}>{m.label}</div>
@@ -341,11 +362,6 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice }: Tr
                   <div style={{ fontSize: 11, color: "#94a3b8" }}>
                     <strong style={{ color: "#f1f5f9" }}>Swept:</strong> {selectedNode.sweepDetails.sweptPercentage}% of total balance
                   </div>
-                  {selectedNode.sweepDetails.fiuRegistrationNumber && (
-                    <div style={{ fontSize: 11, color: "#94a3b8" }}>
-                      <strong style={{ color: "#f1f5f9" }}>FIU Number:</strong> {selectedNode.sweepDetails.fiuRegistrationNumber}
-                    </div>
-                  )}
                 </div>
               </div>
             )}
