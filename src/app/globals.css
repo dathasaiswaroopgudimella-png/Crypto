@@ -1,0 +1,75 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #05070d;
+  --foreground: #f1f5f9;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Cyber Forensics Glow Effects */
+.glow-cyan {
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.25);
+}
+
+.glow-red {
+  box-shadow: 0 0 20px rgba(255, 51, 102, 0.35);
+}
+
+.glow-gold {
+  box-shadow: 0 0 20px rgba(252, 211, 77, 0.35);
+}
+
+/* React Flow Canvas Dark Overrides */
+.react-flow__background {
+  background-color: #05070d !important;
+}
+
+.react-flow__controls {
+  background-color: #0b101e !important;
+  border: 1px solid #1e2c4a !important;
+  border-radius: 8px !important;
+}
+
+.react-flow__controls button {
+  background-color: #0b101e !important;
+  border-bottom: 1px solid #1e2c4a !important;
+  color: #94a3b8 !important;
+}
+
+.react-flow__controls button:hover {
+  background-color: #10182c !important;
+  color: #00f0ff !important;
+}
+
+.react-flow__minimap {
+  background-color: #0b101e !important;
+  border: 1px solid #1e2c4a !important;
+  border-radius: 8px !important;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #05070d;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1e2c4a;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #00f0ff;
+}
