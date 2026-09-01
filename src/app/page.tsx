@@ -6,13 +6,14 @@ import OverviewTab from "@/components/OverviewTab";
 import TraceTab from "@/components/TraceTab";
 import VaspTab from "@/components/VaspTab";
 import LegalTab from "@/components/LegalTab";
-import { GraphTraceResult } from "@/lib/types";
+import { GraphTraceResult, BlockchainNetwork } from "@/lib/types";
 
 type Tab = "overview" | "trace" | "vasp" | "legal";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [searchAddress, setSearchAddress] = useState("");
+  const [selectedNetwork, setSelectedNetwork] = useState<BlockchainNetwork | "AUTO">("AUTO");
   const [traceResult, setTraceResult] = useState<GraphTraceResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -24,21 +25,22 @@ export default function Home() {
     setActiveTab("trace");
 
     try {
+      const netParam = selectedNetwork === "AUTO" ? undefined : selectedNetwork;
       const res = await fetch("/api/trace", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address: target }),
+        body: JSON.stringify({ address: target, network: netParam }),
       });
       const json = await res.json();
       if (json.success) {
         setTraceResult(json.data);
       }
     } catch (e) {
-      console.error("[Trace]", e);
+      console.error("[Trace Error]", e);
     } finally {
       setIsLoading(false);
     }
-  }, [searchAddress]);
+  }, [searchAddress, selectedNetwork]);
 
   const handleSelectCase = useCallback((address: string) => {
     setSearchAddress(address);
@@ -56,6 +58,8 @@ export default function Home() {
         setActiveTab={setActiveTab}
         searchAddress={searchAddress}
         setSearchAddress={setSearchAddress}
+        selectedNetwork={selectedNetwork}
+        setSelectedNetwork={setSelectedNetwork}
         onSearch={() => runTrace()}
         isLoading={isLoading}
         onSelectCase={handleSelectCase}
