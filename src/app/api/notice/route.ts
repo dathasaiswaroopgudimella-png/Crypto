@@ -6,25 +6,17 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const trace: GraphTraceResult = body.trace;
-    const officerInfo = body.officerInfo;
-    const complaintInfo = body.complaintInfo;
+    const officerInfo = body.officerInfo || {};
+    const complaintInfo = body.complaintInfo || {};
 
     if (!trace) {
-      return NextResponse.json({ error: "Missing trace graph data" }, { status: 400 });
+      return NextResponse.json({ error: "Trace data is required." }, { status: 400 });
     }
 
-    const noticeData = BnssNoticeGenerator.generateSection94Notice(
-      trace,
-      officerInfo,
-      complaintInfo
-    );
-
-    return NextResponse.json(noticeData);
+    const notice = BnssNoticeGenerator.generateSection94Notice(trace, officerInfo, complaintInfo);
+    return NextResponse.json({ success: true, notice });
   } catch (error: any) {
-    console.error("[API/notice] Error:", error);
-    return NextResponse.json(
-      { error: error.message || "Failed to generate Section 94 Notice" },
-      { status: 500 }
-    );
+    console.error("[API/notice]", error);
+    return NextResponse.json({ error: "Notice generation failed." }, { status: 500 });
   }
 }

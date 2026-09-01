@@ -1,4 +1,4 @@
-export type BlockchainNetwork = "ETH" | "TRON" | "BTC" | "SOL" | "POLYGON" | "BASE" | "BSC";
+export type BlockchainNetwork = "ETH" | "TRON" | "BTC" | "POLYGON" | "BASE" | "SOL";
 
 export type EntityType = 
   | "VICTIM" 
@@ -15,9 +15,9 @@ export interface TransactionRecord {
   txHash: string;
   fromAddress: string;
   toAddress: string;
-  amount: number; // in USDT / USD / token value
+  amount: number;
   tokenSymbol: "USDT" | "USDC" | "ETH" | "TRX" | "BTC" | "SOL";
-  timestamp: string; // ISO 8601 UTC
+  timestamp: string;
   blockNumber: number;
   network: BlockchainNetwork;
   gasRefillDetected?: boolean;
@@ -132,5 +132,3 @@ export interface Section94NoticeData {
     bsaSection63Clause: string;
   };
 }
-
-export type ActiveTab = "overview" | "graph" | "wallet" | "vasp" | "cases";

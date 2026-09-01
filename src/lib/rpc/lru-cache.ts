@@ -18,7 +18,6 @@ export class LRUCache<K, V> {
       return undefined;
     }
 
-    // Refresh position
     this.cache.delete(key);
     this.cache.set(key, item);
     return item.value;
@@ -47,5 +46,4 @@ export class LRUCache<K, V> {
   }
 }
 
-export const globalBlockCache = new LRUCache<string, any>(1000, 120000);
-export const globalTxCache = new LRUCache<string, any>(1000, 120000);
+export const globalTxCache = new LRUCache<string, any>(1000, 180000);

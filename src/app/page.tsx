@@ -1,121 +1,83 @@
-"use client";
+'use client';
 
-import React, { useState } from "react";
-import { TopNav } from "@/components/Header/TopNav";
-import { TraceGraph } from "@/components/Canvas/TraceGraph";
-import { NodeDrawer } from "@/components/Canvas/NodeDrawer";
-import { MetricsPanel } from "@/components/Analytics/MetricsPanel";
-import { ThreatTimeline } from "@/components/Analytics/ThreatTimeline";
-import { NoticeModal } from "@/components/Legal/NoticeModal";
-import { OverviewTab } from "@/components/Dashboard/OverviewTab";
-import { WalletDeepDive } from "@/components/Wallet/WalletDeepDive";
-import { VaspDirectoryTab } from "@/components/Vasp/VaspDirectoryTab";
-import { ActiveTab, BlockchainNetwork, ForensicNode, GraphTraceResult } from "@/lib/types";
-import { MOCK_CASES } from "@/lib/mock-data";
+import { useState, useCallback } from "react";
+import Header from "@/components/Header";
+import OverviewTab from "@/components/OverviewTab";
+import TraceTab from "@/components/TraceTab";
+import VaspTab from "@/components/VaspTab";
+import LegalTab from "@/components/LegalTab";
+import { GraphTraceResult } from "@/lib/types";
 
-export default function App() {
-  const [activeTab, setActiveTab] = useState<ActiveTab>("overview");
-  const [selectedCaseId, setSelectedCaseId] = useState<string>(MOCK_CASES[0].caseId);
-  const [traceResult, setTraceResult] = useState<GraphTraceResult | null>(MOCK_CASES[0].graphData);
-  const [selectedNode, setSelectedNode] = useState<ForensicNode | null>(null);
-  const [isNoticeOpen, setIsNoticeOpen] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+type Tab = "overview" | "trace" | "vasp" | "legal";
 
-  const handleSelectCase = (caseId: string) => {
-    setSelectedCaseId(caseId);
-    const found = MOCK_CASES.find((c) => c.caseId === caseId);
-    if (found) {
-      setTraceResult(found.graphData);
-      setSelectedNode(null);
-    }
-  };
+export default function Home() {
+  const [activeTab, setActiveTab] = useState<Tab>("overview");
+  const [searchAddress, setSearchAddress] = useState("");
+  const [traceResult, setTraceResult] = useState<GraphTraceResult | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSearch = async (address: string, network: BlockchainNetwork) => {
+  const runTrace = useCallback(async (address?: string) => {
+    const target = (address || searchAddress).trim();
+    if (!target) return;
+
     setIsLoading(true);
+    setActiveTab("trace");
+
     try {
       const res = await fetch("/api/trace", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ address, network, maxHops: 5 }),
+        body: JSON.stringify({ address: target }),
       });
-      if (res.ok) {
-        const data: GraphTraceResult = await res.json();
-        setTraceResult(data);
-        setSelectedNode(null);
-        setActiveTab("graph");
+      const json = await res.json();
+      if (json.success) {
+        setTraceResult(json.data);
       }
-    } catch (err) {
-      console.error("Search error:", err);
+    } catch (e) {
+      console.error("[Trace]", e);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [searchAddress]);
+
+  const handleSelectCase = useCallback((address: string) => {
+    setSearchAddress(address);
+    runTrace(address);
+  }, [runTrace]);
+
+  const handleRequestNotice = useCallback(() => {
+    setActiveTab("legal");
+  }, []);
 
   return (
-    <main className="flex flex-col h-screen w-screen overflow-hidden bg-background text-foreground font-sans">
-      {/* Top Navigation & Tabs */}
-      <TopNav
+    <div style={{ minHeight: "100vh", background: "#0a0e1a" }}>
+      <Header
         activeTab={activeTab}
         setActiveTab={setActiveTab}
-        onSearch={handleSearch}
-        onSelectCase={handleSelectCase}
-        onOpenNotice={() => setIsNoticeOpen(true)}
+        searchAddress={searchAddress}
+        setSearchAddress={setSearchAddress}
+        onSearch={() => runTrace()}
         isLoading={isLoading}
-        selectedCaseId={selectedCaseId}
+        onSelectCase={handleSelectCase}
       />
 
-      {/* Main Tab Content */}
-      <div className="flex-1 relative overflow-hidden flex flex-col">
+      <main>
         {activeTab === "overview" && (
           <OverviewTab
-            trace={traceResult}
-            onSelectCase={handleSelectCase}
-            onGoToGraph={() => setActiveTab("graph")}
+            traceResult={traceResult}
+            onLoadCase={handleSelectCase}
           />
         )}
-
-        {activeTab === "graph" && (
-          <div className="flex-1 flex flex-col h-full relative">
-            <MetricsPanel trace={traceResult} />
-            <div className="flex-1 relative overflow-hidden">
-              <TraceGraph
-                traceResult={traceResult}
-                onNodeClick={(node) => setSelectedNode(node)}
-              />
-              <NodeDrawer
-                node={selectedNode}
-                onClose={() => setSelectedNode(null)}
-                onGenerateNotice={() => setIsNoticeOpen(true)}
-              />
-            </div>
-            <ThreatTimeline trace={traceResult} />
-          </div>
-        )}
-
-        {activeTab === "wallet" && (
-          <WalletDeepDive
-            trace={traceResult}
-            onOpenNotice={() => setIsNoticeOpen(true)}
+        {activeTab === "trace" && (
+          <TraceTab
+            traceResult={traceResult}
+            isLoading={isLoading}
+            onRequestNotice={handleRequestNotice}
           />
         )}
-
-        {activeTab === "vasp" && <VaspDirectoryTab />}
-
-        {activeTab === "cases" && (
-          <OverviewTab
-            trace={traceResult}
-            onSelectCase={handleSelectCase}
-            onGoToGraph={() => setActiveTab("graph")}
-          />
-        )}
-      </div>
-
-      {/* Section 94 BNSS Freezing Order Modal */}
-      <NoticeModal
-        trace={traceResult}
-        isOpen={isNoticeOpen}
-        onClose={() => setIsNoticeOpen(false)}
-      />
-    </main>
+        {activeTab === "vasp" && <VaspTab />}
+        {activeTab === "legal" && <LegalTab traceResult={traceResult} />}
+      </main>
+    </div>
   );
 }

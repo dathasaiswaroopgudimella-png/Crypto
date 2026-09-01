@@ -3,9 +3,10 @@ import { KNOWN_VASP_REGISTRY, KNOWN_HIGH_RISK_ENTITIES } from "@/lib/constants";
 
 export async function GET() {
   return NextResponse.json({
+    success: true,
     vaspCount: KNOWN_VASP_REGISTRY.length,
-    highRiskCount: KNOWN_HIGH_RISK_ENTITIES.length,
-    fiuRegisteredVasps: KNOWN_VASP_REGISTRY,
+    fiuRegistered: KNOWN_VASP_REGISTRY.filter(v => v.fiuRegistered).length,
+    registry: KNOWN_VASP_REGISTRY,
     highRiskEntities: KNOWN_HIGH_RISK_ENTITIES,
   });
 }

@@ -3,87 +3,70 @@ import { GraphTraceResult } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const trace: GraphTraceResult = body.trace;
-
+    const { trace }: { trace: GraphTraceResult } = await req.json();
     if (!trace) {
-      return NextResponse.json({ error: "Trace data is required" }, { status: 400 });
+      return NextResponse.json({ error: "Trace data is required." }, { status: 400 });
     }
 
+    const inrAmount = (trace.totalVolumeTrackedUsd * 85).toLocaleString("en-IN");
+    const vasp = trace.destinationVasp;
+
+    const prompt = `You are a senior forensic analyst at India's I4C (Indian Cyber Crime Coordination Centre) under the Ministry of Home Affairs. Write a concise, plain-English intelligence brief for a police officer reviewing this cryptocurrency fraud case.
+
+Use simple, clear language. No bullet lists or code. Write in natural paragraphs like a professional intelligence report.
+
+Case Data:
+- Root address: ${trace.rootAddress} on the ${trace.network} blockchain
+- Total stolen: $${trace.totalVolumeTrackedUsd.toLocaleString()} USD (approximately Rs. ${inrAmount})
+- Number of laundering hops: ${trace.nodes.length - 1}
+- Final destination exchange: ${vasp?.name || "Unknown"}
+- FIU registration: ${vasp?.fiuNumber || "Not confirmed"}
+- Attribution confidence: ${vasp?.confidenceScore || 95}%
+- High-risk entities intercepted: ${trace.highRiskEntitiesFound.length > 0 ? trace.highRiskEntitiesFound.join(", ") : "None"}
+
+Write three concise paragraphs covering: what happened to the victim's money, how the syndicate laundered it, and what the police officer must do right now under Section 94 BNSS.`;
+
     const openRouterKey = process.env.OPENROUTER_API_KEY;
-    const model = process.env.OPENROUTER_MODEL || "meta-llama/llama-3.3-70b-instruct:free";
-
-    // Prepare concise prompt for AI forensic investigator
-    const prompt = `You are a Senior Cyber Crime Investigator & Forensic Crypto Analyst assisting the Indian Cyber Crime Coordination Centre (I4C) and Ministry of Home Affairs.
-Analyze this multi-hop cryptocurrency fraud trail and provide a structured, court-admissible plain-English intelligence summary for police officers:
-
-[TRANSACTION TRACE DATA]
-- Root Ingress Address: ${trace.rootAddress} (${trace.network})
-- Total Tracked Volume: $${trace.totalVolumeTrackedUsd.toLocaleString()} USD (~₹${(trace.totalVolumeTrackedUsd * 85).toLocaleString("en-IN")})
-- Number of Hops: ${trace.nodes.length - 1}
-- Destination Exchange Identified: ${trace.destinationVasp?.name || "Unknown VASP"}
-- Destination Deposit Address: ${trace.destinationVasp?.depositAddress || "N/A"}
-- Sweep Confidence: ${trace.destinationVasp?.confidenceScore || 95}%
-- High Risk Obfuscation Entities: ${trace.highRiskEntitiesFound.length > 0 ? trace.highRiskEntitiesFound.join(", ") : "None"}
-
-Please provide:
-1. Executive Crime Summary (What happened to the victim's funds in simple terms)
-2. Layering & Laundering Strategy (Peel-chain, micro-gas refills, or vault sweep patterns identified)
-3. Exchange Attribution & Freezing Urgency under Section 94 BNSS
-4. Recommended Police Directives for Investigating Officer
-Keep the tone formal, highly authoritative, concise, and easy to read.`;
 
     if (openRouterKey && !openRouterKey.includes("YOUR_")) {
       try {
-        const aiResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        const aiRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
           method: "POST",
           headers: {
-            "Authorization": `Bearer ${openRouterKey}`,
+            Authorization: `Bearer ${openRouterKey}`,
             "Content-Type": "application/json",
             "HTTP-Referer": "http://localhost:3000",
             "X-Title": "AEGIS-TRACE Forensic System",
           },
           body: JSON.stringify({
-            model: model,
+            model: process.env.OPENROUTER_MODEL || "meta-llama/llama-3.3-70b-instruct:free",
             messages: [{ role: "user", content: prompt }],
-            temperature: 0.2,
-            max_tokens: 800,
+            temperature: 0.15,
+            max_tokens: 600,
           }),
         });
 
-        if (aiResponse.ok) {
-          const aiJson = await aiResponse.json();
-          const analysisText = aiJson.choices?.[0]?.message?.content;
-          if (analysisText) {
-            return NextResponse.json({
-              success: true,
-              source: "OpenRouter LLM",
-              analysis: analysisText,
-            });
+        if (aiRes.ok) {
+          const json = await aiRes.json();
+          const text = json.choices?.[0]?.message?.content;
+          if (text) {
+            return NextResponse.json({ success: true, source: "AI", analysis: text });
           }
         }
-      } catch (aiErr) {
-        console.warn("[AI Analysis] OpenRouter query failed, generating rule-based summary:", aiErr);
+      } catch (e) {
+        console.warn("[ai-analysis] OpenRouter failed, using deterministic engine:", e);
       }
     }
 
-    // Deterministic High-Precision Fallback Analysis
-    const fallbackAnalysis = `### Executive Forensic Intelligence Summary
-**Incident Target**: Stolen funds totaling $${trace.totalVolumeTrackedUsd.toLocaleString()} USD (₹${(trace.totalVolumeTrackedUsd * 85).toLocaleString("en-IN")}) originated from victim ingress address \`${trace.rootAddress.slice(0, 8)}...\` on the ${trace.network} ledger.
+    const fallback = `The victim's money, totalling approximately Rs. ${inrAmount}, was moved off the traditional banking system within minutes of the crime. The funds were converted into USDT cryptocurrency through a peer-to-peer merchant and credited to the suspect's first wallet address on the ${trace.network} blockchain.
 
-### Layering & Laundering Mechanism
-The syndicate executed a rapid ${trace.nodes.length - 1}-hop peel chain traversal. After passing through intermediary mule staging addresses to evade domestic banking liens, the suspect deposited funds into a personalized exchange account. A micro-gas refill transaction was detected immediately prior to a consolidated 100% balance sweep into ${trace.destinationVasp?.name || "a Centralized Exchange"} vault.
+The laundering involved ${trace.nodes.length - 1} rapid transfers across disposable intermediary wallets — a technique known as peel-chain layering — where each wallet received the funds and immediately passed them on, making traditional block-by-block tracing extremely difficult without automated tooling. The final transfer showed a classic exchange deposit signature: a micro-gas top-up from the exchange parent wallet followed by a complete balance sweep into ${vasp?.name || "a centralized exchange"}'s internal vault.
 
-### Statutory Freezing Urgency (Section 94 BNSS)
-Attribution confidence to **${trace.destinationVasp?.name || "Exchange"}** is confirmed at **${trace.destinationVasp?.confidenceScore || 98.6}%**. Under Section 94 of Bharatiya Nagarik Suraksha Sanhita (BNSS 2023), immediate notice must be served to ${trace.destinationVasp?.complianceEmail || "the VASP compliance desk"} to place a hold on user account credentials and preserve KYC records.`;
+Under Section 94 of the Bharatiya Nagarik Suraksha Sanhita, the Investigating Officer must immediately issue a statutory notice to ${vasp?.name || "the exchange"} at ${vasp?.complianceEmail || "their compliance desk"}, demanding a freeze on the identified deposit account, preservation of full KYC records, and disclosure of all associated bank accounts and login activity within twenty-four hours.`;
 
-    return NextResponse.json({
-      success: true,
-      source: "Deterministic Forensic Engine",
-      analysis: fallbackAnalysis,
-    });
-  } catch (error: any) {
-    console.error("[API/ai-analysis] Error:", error);
-    return NextResponse.json({ error: "Failed to generate AI analysis" }, { status: 500 });
+    return NextResponse.json({ success: true, source: "Deterministic Engine", analysis: fallback });
+  } catch (e: any) {
+    console.error("[api/ai-analysis]", e);
+    return NextResponse.json({ error: "Analysis failed." }, { status: 500 });
   }
 }
