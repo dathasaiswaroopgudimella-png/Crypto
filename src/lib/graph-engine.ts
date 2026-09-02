@@ -71,9 +71,24 @@ export class GraphTraversalEngine {
     const detectedAsset = detectCryptoAsset(cleanRoot);
     const resolvedNetwork = network && network !== "UNKNOWN" ? network : detectedAsset.network;
     const nodesMap = new Map<string, ForensicNode>();
-    const edges: ForensicEdge[] = [];
+    // edgeMap deduplicates by source+target+tokenSymbol; amounts are accumulated.
+    // This is the canonical dedup: it prevents duplicate React keys in any renderer.
+    const edgeMap = new Map<string, ForensicEdge>();
+    let edgeSeq = 0; // monotonic counter guarantees unique IDs regardless of txHash
     const highRiskFound = new Set<string>();
     const crossChainHops: CrossChainHop[] = [];
+
+    const upsertEdge = (e: Omit<ForensicEdge, "id">) => {
+      const key = `${e.source.toLowerCase()}__${e.target.toLowerCase()}__${e.tokenSymbol}`;
+      const existing = edgeMap.get(key);
+      if (existing) {
+        existing.amount = (existing.amount || 0) + (e.amount || 0);
+        existing.isSweeping = existing.isSweeping || e.isSweeping;
+        existing.isBridgeTx = existing.isBridgeTx || (e.isBridgeTx ?? false);
+      } else {
+        edgeMap.set(key, { ...e, id: `ge-${edgeSeq++}-${key.slice(0, 24)}` });
+      }
+    };
 
     // 2. Query Live Account State for Root Address
     const rootState = await globalMultiChainRouter.queryAccount(cleanRoot, resolvedNetwork);
@@ -166,8 +181,7 @@ export class GraphTraversalEngine {
           nodesMap.set(targetAddr, targetNode);
         }
 
-        edges.push({
-          id: `edge-${tx.txHash.slice(0, 10)}`,
+        upsertEdge({
           source: cleanRoot,
           target: tx.toAddress,
           amount: tx.amount > 0 ? tx.amount : 0,
@@ -225,8 +239,7 @@ export class GraphTraversalEngine {
           nodesMap.set(senderAddr, senderNode);
         }
 
-        edges.push({
-          id: `edge-in-${inTx.txHash.slice(0, 10)}`,
+        upsertEdge({
           source: inTx.fromAddress,
           target: cleanRoot,
           amount: inTx.amount > 0 ? inTx.amount : 0,
@@ -290,8 +303,7 @@ export class GraphTraversalEngine {
               nodesMap.set(nextTarget, node);
             }
 
-            edges.push({
-              id: `edge-${tx.txHash.slice(0, 10)}`,
+            upsertEdge({
               source: currentAddr,
               target: tx.toAddress,
               amount: tx.amount > 0 ? tx.amount : 0,
@@ -332,7 +344,9 @@ export class GraphTraversalEngine {
 
     const duration = Math.round(performance.now() - startTime);
     const nodeList = Array.from(nodesMap.values());
-    const stateString = JSON.stringify({ nodes: nodeList.map(n => n.id), edges: edges.map(e => e.txHash) });
+    const edgeList = Array.from(edgeMap.values()); // deduplicated, unique-ID edges
+
+    const stateString = JSON.stringify({ nodes: nodeList.map(n => n.id), edges: edgeList.map(e => e.txHash) });
 
     const sha256StateHash = Array.from(
       new Uint8Array(
@@ -346,7 +360,7 @@ export class GraphTraversalEngine {
     // 5. Automated 7-Pattern Detection and 6-Dimension Risk Scoring
     const detectedPatterns = FraudPatternDetector.detectAll(
       nodeList,
-      edges,
+      edgeList,
       exactInflow,
       rootState.outgoingTransfers
     );
@@ -364,7 +378,7 @@ export class GraphTraversalEngine {
       network: resolvedNetwork,
       detectedAsset,
       nodes: nodeList,
-      edges,
+      edges: edgeList,
       maxHops,
       traversalDurationMs: duration,
       totalVolumeTrackedUsd: totalVolume,
