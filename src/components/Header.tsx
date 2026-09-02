@@ -22,11 +22,11 @@ interface HeaderProps {
 }
 
 const TABS: { id: Tab; label: string; icon: any }[] = [
-  { id: "overview", label: "Command Overview", icon: Activity },
-  { id: "trace", label: "Fund Flow Graph", icon: Network },
-  { id: "alerts", label: "Laundering Radar", icon: AlertTriangle },
+  { id: "overview", label: "National Overview", icon: Activity },
+  { id: "trace", label: "Fund Flow Graph & Radar", icon: Network },
+  { id: "alerts", label: "Laundering Typologies", icon: AlertTriangle },
   { id: "vasp", label: "VASP Intelligence", icon: Database },
-  { id: "legal", label: "Legal Notices (BNSS §94)", icon: FileText },
+  { id: "legal", label: "Section 94 BNSS Notice", icon: FileText },
 ];
 
 export default function Header({
@@ -65,27 +65,19 @@ export default function Header({
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <div style={{
-            width: 36, height: 36, borderRadius: 8,
-            background: "linear-gradient(135deg, #0ea5e9 0%, #3b82f6 50%, #6366f1 100%)",
+            width: 38, height: 38, borderRadius: 10,
+            background: "linear-gradient(135deg, #0ea5e9 0%, #2563eb 50%, #4f46e5 100%)",
             display: "flex", alignItems: "center", justifyContent: "center",
-            boxShadow: "0 0 16px rgba(14, 165, 233, 0.35)",
+            boxShadow: "0 0 18px rgba(14, 165, 233, 0.4)",
           }}>
-            <Shield size={20} color="white" />
+            <Shield size={22} color="white" />
           </div>
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 16, fontWeight: 800, color: "#f8fafc", letterSpacing: "-0.02em" }}>
-                AEGIS-TRACE
-              </span>
-              <span style={{
-                fontSize: 10, fontWeight: 800, padding: "1px 6px", borderRadius: 4,
-                background: "rgba(14, 165, 233, 0.15)", color: "#38bdf8", border: "1px solid rgba(14, 165, 233, 0.3)",
-              }}>
-                v2.0 PRO
-              </span>
+            <div style={{ fontSize: 15, fontWeight: 800, color: "#f8fafc", letterSpacing: "-0.01em" }}>
+              INDIAN CYBER CRIME COORDINATION CENTRE (I4C)
             </div>
-            <div style={{ fontSize: 10, color: "#64748b", fontWeight: 600, letterSpacing: "0.06em" }}>
-              MHA / I4C — REAL-TIME FRAUD ATTRIBUTION &amp; VASP IDENTIFICATION
+            <div style={{ fontSize: 11, color: "#38bdf8", fontWeight: 600, letterSpacing: "0.03em" }}>
+              Real-Time Crypto Fraud Attribution &amp; VASP Identification System
             </div>
           </div>
         </div>
@@ -102,11 +94,11 @@ export default function Header({
           }}>
             <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#10b981", boxShadow: "0 0 8px #10b981" }} />
             <span style={{ fontSize: 11, color: "#34d399", fontWeight: 700 }}>
-              Live Ingestion Node Active
+              Live Blockchain Ingestion Active
             </span>
           </div>
-          <div style={{ fontSize: 11, color: "#64748b", fontWeight: 500 }}>
-            SIH 2026 — PS SIH26183 &amp; SIH26182
+          <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600 }}>
+            CIS Division · Ministry of Home Affairs
           </div>
         </div>
       </div>
@@ -149,7 +141,7 @@ export default function Header({
               value={searchAddress}
               onChange={(e) => setSearchAddress(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && onSearch()}
-              placeholder="Paste suspect wallet address — 0x... (ETH/Polygon/BSC), T... (TRON), bc1... (BTC), or Base58 (SOL)"
+              placeholder="Enter suspect wallet address — 0x... (ETH/Polygon/BSC), T... (TRON), bc1... (BTC), or Base58 (SOL)"
               style={{
                 width: "100%",
                 background: "#0f172a",
@@ -179,7 +171,7 @@ export default function Header({
               whiteSpace: "nowrap",
             }}
           >
-            {isLoading ? "Executing BFS Trace..." : "Trace Funds"}
+            {isLoading ? "Tracing Blockchain..." : "Trace Funds"}
           </button>
 
           {/* Benchmark Case Selector */}
@@ -198,7 +190,7 @@ export default function Header({
                 appearance: "none",
               }}
             >
-              <option value="" disabled>Load Authentic Benchmark Case</option>
+              <option value="" disabled>Load Authentic FIR Benchmark Case</option>
               {AUTHENTIC_FORENSIC_CASES.map(c => (
                 <option key={c.caseId} value={c.initialSuspectAddress}>
                   {c.caseId} — {c.incidentType} (₹{(c.stolenAmountInr / 100000).toFixed(1)}L)

@@ -16,7 +16,7 @@ export default function Home() {
   const [traceResult, setTraceResult] = useState<GraphTraceResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const runTrace = useCallback(async (address?: string, isPreset: boolean = false) => {
+  const runTrace = useCallback(async (address?: string, isPreset: boolean = false, network?: BlockchainNetwork) => {
     const target = (address || searchAddress).trim();
     if (!target) return;
 
@@ -24,7 +24,7 @@ export default function Home() {
     setActiveTab("trace");
 
     try {
-      const netParam = selectedNetwork === "AUTO" ? undefined : selectedNetwork;
+      const netParam = network || (selectedNetwork === "AUTO" ? undefined : selectedNetwork);
       const res = await fetch("/api/trace", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -48,6 +48,14 @@ export default function Home() {
   const handleSelectCase = useCallback((address: string) => {
     setSearchAddress(address);
     runTrace(address, true);
+  }, [runTrace]);
+
+  const handleTraceAddress = useCallback((address: string, network?: string) => {
+    setSearchAddress(address);
+    if (network && network !== "UNKNOWN") {
+      setSelectedNetwork(network as BlockchainNetwork);
+    }
+    runTrace(address, false, network as BlockchainNetwork);
   }, [runTrace]);
 
   const handleRequestNotice = useCallback(() => {
@@ -97,7 +105,12 @@ export default function Home() {
             onRequestNotice={handleRequestNotice}
           />
         )}
-        {activeTab === "vasp" && <VaspTab />}
+        {activeTab === "vasp" && (
+          <VaspTab
+            onTraceAddress={handleTraceAddress}
+            onRequestNoticeForVasp={handleRequestNotice}
+          />
+        )}
         {activeTab === "legal" && <LegalTab traceResult={traceResult} />}
       </main>
     </div>
