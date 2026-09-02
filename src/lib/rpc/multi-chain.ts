@@ -82,16 +82,8 @@ export function detectCryptoAsset(address: string): AssetDetectionResult {
 }
 
 export class MultiChainForensicRouter {
-  private blockchainComKey: string;
-  private blockchainComUrl: string;
-
-  constructor() {
-    this.blockchainComKey = process.env.BLOCKCHAIN_COM_API_KEY || "expl_1MZodXaWAAxgJt2N7yiowl2yMZuaHHs1";
-    this.blockchainComUrl = process.env.BLOCKCHAIN_COM_GATEWAY_URL || "https://api.blockchain.info/explorer-gateway-kt";
-  }
-
   /**
-   * Bitcoin Live Ingestion
+   * Bitcoin Live Ingestion via Blockchain.info rawaddr
    */
   async queryBitcoinAccount(address: string): Promise<AccountStateResult> {
     const cacheKey = `btc:${address}`;
@@ -127,16 +119,19 @@ export class MultiChainForensicRouter {
             for (const out of tx.out || []) {
               if (out.addr && out.addr !== address) {
                 const amountBtc = (out.value || 0) / 1e8;
-                outgoing.push({
-                  txHash,
-                  fromAddress: address,
-                  toAddress: out.addr,
-                  amount: Math.round(amountBtc * btcPriceUsd * 100) / 100,
-                  tokenSymbol: "BTC",
-                  timestamp,
-                  blockNumber,
-                  network: "BTC",
-                });
+                const amountUsd = Math.round(amountBtc * btcPriceUsd * 100) / 100;
+                if (amountUsd > 0) {
+                  outgoing.push({
+                    txHash,
+                    fromAddress: address,
+                    toAddress: out.addr,
+                    amount: amountUsd,
+                    tokenSymbol: "BTC",
+                    timestamp,
+                    blockNumber,
+                    network: "BTC",
+                  });
+                }
               }
             }
           } else {
@@ -146,12 +141,13 @@ export class MultiChainForensicRouter {
             for (const out of tx.out || []) {
               if (out.addr === address) recvVal += (out.value || 0) / 1e8;
             }
-            if (recvVal > 0) {
+            const recvUsd = Math.round(recvVal * btcPriceUsd * 100) / 100;
+            if (recvUsd > 0) {
               incoming.push({
                 txHash,
                 fromAddress: sender,
                 toAddress: address,
-                amount: Math.round(recvVal * btcPriceUsd * 100) / 100,
+                amount: recvUsd,
                 tokenSymbol: "BTC",
                 timestamp,
                 blockNumber,
@@ -183,7 +179,7 @@ export class MultiChainForensicRouter {
   }
 
   /**
-   * EVM Live Ingestion via Blockscout v2 REST
+   * EVM Live Ingestion via Blockscout v2 REST with verified token decimals & rates
    */
   async queryEvmAccount(address: string, network: "ETH" | "POLYGON" | "BASE" = "ETH"): Promise<AccountStateResult> {
     const clean = address.toLowerCase();
@@ -208,33 +204,57 @@ export class MultiChainForensicRouter {
         for (const item of json.items || []) {
           const fromAddr = item.from?.hash?.toLowerCase() || "";
           const toAddr = item.to?.hash?.toLowerCase() || "";
-          const rawVal = BigInt(item.total?.value || "0");
-          const dec = Number(item.total?.decimals || 6);
-          const val = Number(rawVal) / Math.pow(10, dec);
-          const symbol = (item.token?.symbol || "USDT") as any;
+          const rawValStr = item.total?.value || item.value || "0";
+          const rawVal = BigInt(rawValStr);
+          
+          // Accurately resolve decimals from token object or total object
+          const dec = Number(item.token?.decimals ?? item.total?.decimals ?? 18);
+          const tokenUnits = Number(rawVal) / Math.pow(10, Math.max(0, Math.min(18, dec)));
+          
+          const symbol = (item.token?.symbol || "USDT").toUpperCase();
           const timestamp = item.timestamp || new Date().toISOString();
           const blockNumber = Number(item.block_number || 0);
           const txHash = item.transaction_hash || "0x...";
 
+          // Currency & Valuation Normalization
+          let rate = 0;
+          if (["USDT", "USDC", "DAI", "BUSD", "FDUSD", "TUSD"].includes(symbol)) {
+            rate = 1.0;
+          } else if (["WETH", "ETH", "STETH"].includes(symbol)) {
+            rate = 2700.0;
+          } else if (item.token?.exchange_rate) {
+            rate = Number(item.token.exchange_rate);
+          }
+
+          // If rate is available, compute USD; otherwise if standard unit, take unit value if reasonable
+          let valUsd = 0;
+          if (rate > 0) {
+            valUsd = Math.round(tokenUnits * rate * 100) / 100;
+          } else if (tokenUnits > 0 && tokenUnits < 500000) {
+            valUsd = Math.round(tokenUnits * 100) / 100;
+          }
+
+          if (valUsd <= 0) continue;
+
           if (fromAddr === clean) {
-            totalOutflow += val;
+            totalOutflow += valUsd;
             outgoing.push({
               txHash,
               fromAddress: clean,
               toAddress: toAddr,
-              amount: Math.round(val * 100) / 100,
+              amount: valUsd,
               tokenSymbol: symbol,
               timestamp,
               blockNumber,
               network,
             });
           } else if (toAddr === clean) {
-            totalInflow += val;
+            totalInflow += valUsd;
             incoming.push({
               txHash,
               fromAddress: fromAddr,
               toAddress: clean,
-              amount: Math.round(val * 100) / 100,
+              amount: valUsd,
               tokenSymbol: symbol,
               timestamp,
               blockNumber,
@@ -244,7 +264,7 @@ export class MultiChainForensicRouter {
         }
       }
 
-      // 2. Native transactions if token transfers are empty
+      // 2. Native ETH transactions if token transfers are empty
       if (outgoing.length === 0 && incoming.length === 0) {
         const txUrl = `https://${host}/api/v2/addresses/${clean}/transactions`;
         const txRes = await fetch(txUrl, { headers: { "User-Agent": "Mozilla/5.0" } });
@@ -259,6 +279,8 @@ export class MultiChainForensicRouter {
             const timestamp = item.timestamp || new Date().toISOString();
             const blockNumber = Number(item.block_number || 0);
             const txHash = item.hash || "0x...";
+
+            if (valUsd <= 0) continue;
 
             if (fromAddr === clean && toAddr) {
               totalOutflow += valUsd;
@@ -341,31 +363,35 @@ export class MultiChainForensicRouter {
           const fromAddr = t.from_address || "";
           const toAddr = t.to_address || "";
           const rawAmount = Number(t.quant || 0);
-          const decimals = Number(t.tokenInfo?.tokenDecimal || 6);
-          const val = rawAmount > 1e10 ? rawAmount / Math.pow(10, decimals) : rawAmount;
+          const decimals = Number(t.tokenInfo?.tokenDecimal ?? 6);
+          // TRC-20 base units are in 10^decimals (sun / base units)
+          const val = decimals > 0 ? (rawAmount / Math.pow(10, decimals)) : rawAmount;
+          const valUsd = Math.round(val * 100) / 100;
           const timestamp = t.block_ts ? new Date(t.block_ts).toISOString() : new Date().toISOString();
           const blockNumber = t.block || 0;
           const txHash = t.transaction_id || "0x...";
 
+          if (valUsd <= 0) continue;
+
           if (fromAddr.toLowerCase() === address.toLowerCase()) {
-            totalOutflow += val;
+            totalOutflow += valUsd;
             outgoing.push({
               txHash,
               fromAddress: address,
               toAddress: toAddr,
-              amount: Math.round(val * 100) / 100,
+              amount: valUsd,
               tokenSymbol: "USDT",
               timestamp,
               blockNumber,
               network: "TRON",
             });
           } else {
-            totalInflow += val;
+            totalInflow += valUsd;
             incoming.push({
               txHash,
               fromAddress: fromAddr,
               toAddress: address,
-              amount: Math.round(val * 100) / 100,
+              amount: valUsd,
               tokenSymbol: "USDT",
               timestamp,
               blockNumber,
@@ -382,8 +408,8 @@ export class MultiChainForensicRouter {
       address,
       network: "TRON",
       detectedAsset,
-      balance: Math.max(0, totalInflow - totalOutflow),
-      balanceUsd: Math.max(0, totalInflow - totalOutflow),
+      balance: Math.max(0, Math.round((totalInflow - totalOutflow) * 100) / 100),
+      balanceUsd: Math.max(0, Math.round((totalInflow - totalOutflow) * 100) / 100),
       totalReceived: Math.round(totalInflow * 100) / 100,
       totalSent: Math.round(totalOutflow * 100) / 100,
       txCount: outgoing.length + incoming.length,

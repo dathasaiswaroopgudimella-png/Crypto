@@ -61,7 +61,8 @@ export class HeuristicEngine {
   static evaluateVaspSweeping(
     inflowUsdt: number,
     outgoingTxs: TransactionRecord[],
-    network: string
+    network: string,
+    sourceAddress?: string
   ): SweepEvaluationResult {
     if (inflowUsdt <= 0 || outgoingTxs.length === 0) {
       return {
@@ -72,6 +73,21 @@ export class HeuristicEngine {
       };
     }
 
+    // If source address itself is already an established VASP hot wallet/vault, it does not "sweep" to itself as a mule
+    if (sourceAddress) {
+      const sourceEntity = this.identifyKnownEntity(sourceAddress, network);
+      if (sourceEntity.entityType === "VASP_HOT_WALLET" || sourceEntity.entityType === "VASP_COLD_VAULT") {
+        return {
+          isSwept: false,
+          microGasRefill: false,
+          sweptPercentage: 0,
+          exchangeName: sourceEntity.name,
+          fiuRegistrationNumber: sourceEntity.fiuRegistrationNumber,
+          riskLevel: "LOW",
+        };
+      }
+    }
+
     const sorted = [...outgoingTxs].sort(
       (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
     );
@@ -79,9 +95,10 @@ export class HeuristicEngine {
     const firstSweep = sorted[0];
     const sweptAmount = firstSweep.amount;
     const sweptRatio = (sweptAmount / inflowUsdt) * 100;
+    const cappedPercentage = Math.min(100, Math.max(0, Math.round(sweptRatio)));
 
     const knownTarget = this.identifyKnownEntity(firstSweep.toAddress, network);
-    const isHighSwept = sweptRatio >= 95;
+    const isHighSwept = sweptRatio >= 85;
     const isKnownVault = knownTarget.entityType === "VASP_HOT_WALLET" || knownTarget.entityType === "VASP_COLD_VAULT";
 
     if (isHighSwept || isKnownVault) {
@@ -90,7 +107,7 @@ export class HeuristicEngine {
         isSwept: true,
         microGasRefill: firstSweep.gasRefillDetected ?? true,
         gasAmount: firstSweep.gasRefillAmount ? `${firstSweep.gasRefillAmount} ${firstSweep.gasRefillAsset || "TRX"}` : "15 TRX (Micro-Gas Refill)",
-        sweptPercentage: Math.min(100, Math.round(sweptRatio)),
+        sweptPercentage: cappedPercentage,
         destinationVault: firstSweep.toAddress,
         exchangeName,
         fiuRegistrationNumber: knownTarget.fiuRegistrationNumber,
@@ -101,7 +118,7 @@ export class HeuristicEngine {
     return {
       isSwept: false,
       microGasRefill: false,
-      sweptPercentage: Math.round(sweptRatio),
+      sweptPercentage: cappedPercentage,
       riskLevel: "MEDIUM",
     };
   }
