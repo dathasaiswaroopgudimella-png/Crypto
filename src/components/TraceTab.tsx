@@ -172,8 +172,35 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice }: Tr
       };
     });
 
-    const rfEdges: Edge[] = traceResult.edges.map((edge, idx) => ({
-      id: edge.id || `edge-${idx}`,
+    // Deduplicate edges: multiple txns between the same source→target+token collapse into one
+    // (amounts are summed) to prevent ReactFlow duplicate-key warnings.
+    const edgeMap = new Map<string, {
+      source: string; target: string; amount: number;
+      tokenSymbol: string; isSweeping: boolean; isBridgeTx: boolean;
+    }>();
+
+    for (const edge of traceResult.edges) {
+      const dedupeKey = `${edge.source}__${edge.target}__${edge.tokenSymbol}`;
+      const existing = edgeMap.get(dedupeKey);
+      if (existing) {
+        existing.amount += edge.amount || 0;
+        existing.isSweeping = existing.isSweeping || edge.isSweeping;
+        existing.isBridgeTx = existing.isBridgeTx || edge.isBridgeTx;
+      } else {
+        edgeMap.set(dedupeKey, {
+          source: edge.source,
+          target: edge.target,
+          amount: edge.amount || 0,
+          tokenSymbol: edge.tokenSymbol,
+          isSweeping: edge.isSweeping,
+          isBridgeTx: edge.isBridgeTx,
+        });
+      }
+    }
+
+    const rfEdges: Edge[] = Array.from(edgeMap.entries()).map(([dedupeKey, edge], idx) => ({
+      // Always suffix with idx to guarantee uniqueness even if dedupeKey would collide
+      id: `rf-edge-${idx}-${dedupeKey.slice(0, 20)}`,
       source: edge.source,
       target: edge.target,
       label: edge.amount > 0 ? `$${edge.amount.toLocaleString()} ${edge.tokenSymbol}` : edge.tokenSymbol,
