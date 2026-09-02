@@ -91,6 +91,7 @@ export default function VaspTab({ onTraceAddress, onRequestNoticeForVasp }: Vasp
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {(["ALL", "FIU", "GLOBAL", "BRIDGES", "MIXERS"] as const).map(f => (
             <button
+              suppressHydrationWarning
               key={f}
               onClick={() => setFilterType(f)}
               style={{
@@ -313,6 +314,7 @@ export default function VaspTab({ onTraceAddress, onRequestNoticeForVasp }: Vasp
                 </div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
                   <button
+                    suppressHydrationWarning
                     onClick={(e) => {
                       e.stopPropagation();
                       handleTrace(b.address, b.network);
@@ -379,6 +381,7 @@ export default function VaspTab({ onTraceAddress, onRequestNoticeForVasp }: Vasp
                 <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 10 }}>{e.description}</div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
                   <button
+                    suppressHydrationWarning
                     onClick={(ev) => {
                       ev.stopPropagation();
                       handleTrace(e.address, e.network);
@@ -454,6 +457,7 @@ export default function VaspTab({ onTraceAddress, onRequestNoticeForVasp }: Vasp
               </div>
 
               <button
+                suppressHydrationWarning
                 onClick={() => setSelectedVasp(null)}
                 style={{ background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer" }}
               >
@@ -534,6 +538,7 @@ export default function VaspTab({ onTraceAddress, onRequestNoticeForVasp }: Vasp
 
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <button
+                        suppressHydrationWarning
                         onClick={() => handleCopy(hw.address)}
                         style={{
                           background: "transparent",
@@ -553,6 +558,7 @@ export default function VaspTab({ onTraceAddress, onRequestNoticeForVasp }: Vasp
                       </button>
 
                       <button
+                        suppressHydrationWarning
                         onClick={() => {
                           setSelectedVasp(null);
                           handleTrace(hw.address, hw.network);
@@ -582,6 +588,7 @@ export default function VaspTab({ onTraceAddress, onRequestNoticeForVasp }: Vasp
             {/* Actions Footer */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: "1px solid #1e293b", paddingTop: 14 }}>
               <button
+                suppressHydrationWarning
                 onClick={() => {
                   window.location.href = `mailto:${selectedVasp.complianceEmail}?subject=URGENT:%20Statutory%20Freeze%20Order%20u/s%2094%20BNSS%202023%20-%20I4C%20Ref`;
                 }}
@@ -603,6 +610,7 @@ export default function VaspTab({ onTraceAddress, onRequestNoticeForVasp }: Vasp
               </button>
 
               <button
+                suppressHydrationWarning
                 onClick={() => {
                   if (onRequestNoticeForVasp) {
                     onRequestNoticeForVasp(selectedVasp.name);

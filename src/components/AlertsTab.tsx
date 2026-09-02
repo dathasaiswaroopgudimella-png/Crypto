@@ -249,6 +249,7 @@ export default function AlertsTab({ traceResult, onNavigateTrace, onRequestNotic
                   {/* Action row */}
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, paddingTop: 4 }}>
                     <button
+                      suppressHydrationWarning
                       onClick={onNavigateTrace}
                       style={{
                         background: "transparent",
@@ -267,6 +268,7 @@ export default function AlertsTab({ traceResult, onNavigateTrace, onRequestNotic
                     </button>
                     {pat.patternType === "VASP_SWEEPING" && (
                       <button
+                        suppressHydrationWarning
                         onClick={onRequestNotice}
                         style={{
                           background: "linear-gradient(135deg, #1d4ed8 0%, #0891b2 100%)",

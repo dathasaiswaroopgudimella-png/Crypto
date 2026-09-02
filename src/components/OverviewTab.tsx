@@ -229,6 +229,7 @@ export default function OverviewTab({ traceResult, onLoadCase }: OverviewTabProp
                 </div>
 
                 <button
+                  suppressHydrationWarning
                   style={{
                     background: "linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%)",
                     border: "none",

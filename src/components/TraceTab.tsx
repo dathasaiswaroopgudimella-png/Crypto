@@ -338,6 +338,7 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice }: Tr
             {/* View Mode Controls */}
             <div style={{ display: "flex", alignItems: "center", gap: 4, background: "#0a0f1d", border: "1px solid #1e293b", borderRadius: 8, padding: "2px" }}>
               <button
+                suppressHydrationWarning
                 onClick={() => setViewMode("SPLIT")}
                 style={{
                   background: viewMode === "SPLIT" ? "#1e293b" : "transparent",
@@ -357,6 +358,7 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice }: Tr
               </button>
 
               <button
+                suppressHydrationWarning
                 onClick={() => setViewMode("GRAPH_ONLY")}
                 style={{
                   background: viewMode === "GRAPH_ONLY" ? "#1e293b" : "transparent",
@@ -376,6 +378,7 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice }: Tr
               </button>
 
               <button
+                suppressHydrationWarning
                 onClick={() => setViewMode("RADAR_ONLY")}
                 style={{
                   background: viewMode === "RADAR_ONLY" ? "#1e293b" : "transparent",
@@ -398,6 +401,7 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice }: Tr
 
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <button
+              suppressHydrationWarning
               onClick={handleCopyHash}
               style={{
                 background: "#0a0f1d",
@@ -416,6 +420,7 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice }: Tr
             </button>
 
             <button
+              suppressHydrationWarning
               onClick={handleGenerateAiBrief}
               disabled={isGeneratingAi}
               style={{
@@ -436,6 +441,7 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice }: Tr
             </button>
 
             <button
+              suppressHydrationWarning
               onClick={onRequestNotice}
               style={{
                 background: "linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%)",
@@ -662,6 +668,7 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice }: Tr
               Node Forensic Inspection
             </div>
             <button
+              suppressHydrationWarning
               onClick={() => setSelectedNode(null)}
               style={{ background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer" }}
             >
@@ -746,6 +753,7 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice }: Tr
             )}
 
             <button
+              suppressHydrationWarning
               onClick={onRequestNotice}
               style={{
                 background: "linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%)",
@@ -789,6 +797,7 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice }: Tr
               </div>
             </div>
             <button
+              suppressHydrationWarning
               onClick={() => setAiBrief(null)}
               style={{ background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer" }}
             >

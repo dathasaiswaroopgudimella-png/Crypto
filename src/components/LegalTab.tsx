@@ -124,6 +124,7 @@ export default function LegalTab({ traceResult }: LegalTabProps) {
 
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button
+            suppressHydrationWarning
             onClick={generateNotice}
             disabled={loading}
             style={{
@@ -154,6 +155,7 @@ export default function LegalTab({ traceResult }: LegalTabProps) {
 
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <button
+                suppressHydrationWarning
                 onClick={copyToClipboard}
                 style={{
                   background: "#0f172a",
@@ -173,6 +175,7 @@ export default function LegalTab({ traceResult }: LegalTabProps) {
               </button>
 
               <button
+                suppressHydrationWarning
                 onClick={handlePrint}
                 style={{
                   background: "#0f172a",

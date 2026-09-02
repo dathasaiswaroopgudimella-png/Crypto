@@ -156,6 +156,7 @@ export default function Header({
           </div>
 
           <button
+            suppressHydrationWarning
             onClick={onSearch}
             disabled={isLoading}
             style={{
@@ -244,6 +245,7 @@ export default function Header({
           const isActive = activeTab === tab.id;
           return (
             <button
+              suppressHydrationWarning
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               style={{
