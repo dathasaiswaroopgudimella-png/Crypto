@@ -1,13 +1,14 @@
-import { FraudPattern, ForensicNode, RiskScore, RiskDimension, RiskLevel, CrossChainHop } from "./types";
-import { KNOWN_HIGH_RISK_ENTITIES } from "./constants";
+import { FraudPattern, ForensicNode, RiskScore, RiskDimension, RiskLevel, CrossChainHop, VaspAttributionResult } from "./types";
+import { KNOWN_HIGH_RISK_ENTITIES, KNOWN_VASP_REGISTRY } from "./constants";
 
 /**
- * Deterministic 6-dimension risk scoring engine.
- * Every score is calculated from real graph topology and live on-chain forensic data.
+ * Deterministic Criminal / Laundering Risk Scoring Engine.
+ * Measures STRICTLY criminality, obfuscation, and money laundering indicators.
+ * Note: VASP Attribution Confidence is an independent metric and is not conflated with criminal risk.
  */
 export class RiskScoringEngine {
 
-  static score(
+  static scoreCriminalRisk(
     nodes: ForensicNode[],
     patterns: FraudPattern[],
     actualMaxHop: number,
@@ -16,11 +17,11 @@ export class RiskScoringEngine {
   ): RiskScore {
     const dimensions: RiskDimension[] = [
       this.scoreMixerProximity(nodes, patterns),
-      this.scoreVaspAttributionConfidence(nodes, patterns),
       this.scoreLayeringDepth(actualMaxHop, patterns),
-      this.scoreCrossChainComplexity(distinctChains, crossChainHops, patterns),
       this.scoreStructuringSignals(patterns, nodes),
+      this.scoreCrossChainFlight(distinctChains, crossChainHops, patterns),
       this.scoreSanctionedEntityExposure(nodes),
+      this.scoreAutomatedSweepingVelocity(patterns, nodes),
     ];
 
     const total = Math.min(
@@ -36,6 +37,17 @@ export class RiskScoringEngine {
     };
   }
 
+  // Backward compatibility wrapper
+  static score(
+    nodes: ForensicNode[],
+    patterns: FraudPattern[],
+    actualMaxHop: number,
+    distinctChains: number,
+    crossChainHops: CrossChainHop[] = []
+  ): RiskScore {
+    return this.scoreCriminalRisk(nodes, patterns, actualMaxHop, distinctChains, crossChainHops);
+  }
+
   private static toLevel(score: number): RiskLevel {
     if (score >= 80) return "CRITICAL";
     if (score >= 60) return "HIGH";
@@ -44,8 +56,7 @@ export class RiskScoringEngine {
   }
 
   /**
-   * Dimension 1 — Mixer Proximity (weight 25%)
-   * Proximity to privacy protocols, tumblers, and mixer pools.
+   * Dimension 1 — Mixer & Tumbler Exposure (weight 25%)
    */
   private static scoreMixerProximity(nodes: ForensicNode[], patterns: FraudPattern[]): RiskDimension {
     const mixerPattern = patterns.find(p => p.patternType === "MIXER_RELAY");
@@ -56,7 +67,7 @@ export class RiskScoringEngine {
 
     if (mixerPattern) {
       score = 100;
-      explanation = `Direct interaction with sanctioned mixer/tumbler on hop ${mixerPattern.detectedAtHop}. Extreme obfuscation risk.`;
+      explanation = `Direct interaction with sanctioned mixer/tumbler on hop ${mixerPattern.detectedAtHop}. Severe obfuscation flag under PMLA §3.`;
     } else {
       let minMixerHop = 999;
       for (const node of nodes) {
@@ -67,64 +78,27 @@ export class RiskScoringEngine {
 
       if (minMixerHop === 0) {
         score = 100;
-        explanation = "Root wallet is an identified privacy pool / mixer address.";
+        explanation = "Subject wallet is an identified privacy pool / tumbler node.";
       } else if (minMixerHop === 1) {
         score = 75;
-        explanation = "Wallet transacted directly (1 hop) with a known mixer / tumbler address.";
+        explanation = "Direct counterparty (1 hop) to known mixer / tumbler address. High contamination risk.";
       } else if (minMixerHop === 2) {
         score = 45;
-        explanation = "Funds are 2 hops removed from a known mixer / privacy pool.";
+        explanation = "Funds passed 2 hops from a known mixer / privacy pool.";
       } else if (minMixerHop <= 4) {
         score = 20;
-        explanation = `Indirect mixer proximity (${minMixerHop} hops removed). Secondary contamination risk.`;
+        explanation = `Indirect mixer proximity (${minMixerHop} hops removed). Secondary contamination.`;
       } else {
         score = 0;
         explanation = "Standard transparent ledger routing; zero mixer contamination identified.";
       }
     }
 
-    return { name: "Mixer Proximity", score, weight: 0.25, explanation };
+    return { name: "Mixer / Privacy Pool Exposure", score, weight: 0.25, explanation };
   }
 
   /**
-   * Dimension 2 — VASP Attribution Confidence (weight 25%)
-   * Higher score when VASP is identified via hot-wallet match or sweeping heuristic.
-   */
-  private static scoreVaspAttributionConfidence(nodes: ForensicNode[], patterns: FraudPattern[]): RiskDimension {
-    const vaspNodes = nodes.filter(n =>
-      n.entityType === "VASP_HOT_WALLET" ||
-      n.entityType === "VASP_COLD_VAULT" ||
-      n.entityType === "VASP_DEPOSIT_ADDRESS"
-    );
-
-    const sweepPattern = patterns.find(p => p.patternType === "VASP_SWEEPING");
-
-    let score = 15;
-    let explanation = "Non-custodial unhosted wallet; funds have not reached a centralized exchange.";
-
-    if (vaspNodes.length > 0) {
-      const directMatch = vaspNodes.find(n => n.entityName);
-      if (directMatch) {
-        score = 98;
-        explanation = `Verified VASP identified: ${directMatch.entityName} (${directMatch.entityType.replace(/_/g, " ")}). FIU-IND production notice can be issued.`;
-      } else if (sweepPattern) {
-        score = 88;
-        explanation = `2-step automated VASP sweeping confirmed with ${sweepPattern.confidence}% confidence. Intermediate exchange deposit node identified.`;
-      } else {
-        score = 65;
-        explanation = "VASP deposit cluster detected based on transaction fan-out. Manual cross-check recommended.";
-      }
-    } else if (sweepPattern) {
-      score = 82;
-      explanation = "High-volume sweeping pattern detected into centralized liquidity aggregator.";
-    }
-
-    return { name: "VASP Attribution Confidence", score, weight: 0.25, explanation };
-  }
-
-  /**
-   * Dimension 3 — Layering Depth & Hop Complexity (weight 20%)
-   * Based on the ACTUAL maximum hop distance in the graph.
+   * Dimension 2 — Layering Depth & Peeling Chains (weight 25%)
    */
   private static scoreLayeringDepth(actualMaxHop: number, patterns: FraudPattern[]): RiskDimension {
     const peeling = patterns.find(p => p.patternType === "PEELING_CHAIN");
@@ -134,10 +108,10 @@ export class RiskScoringEngine {
 
     if (actualMaxHop <= 0) {
       score = 10;
-      explanation = "Single wallet analysis; no downstream layering hops detected.";
+      explanation = "Single wallet assessment; no downstream layering hops observed.";
     } else if (actualMaxHop === 1) {
       score = 25;
-      explanation = "Direct 1-hop transfer. Minimal intermediary layering.";
+      explanation = "Direct 1-hop movement; minimal intermediary layering.";
     } else if (actualMaxHop === 2) {
       score = 50;
       explanation = "2-hop intermediary routing detected. Simple mule wallet used.";
@@ -149,7 +123,7 @@ export class RiskScoringEngine {
       explanation = "4-hop deep layering. Sophisticated obfuscation chain.";
     } else {
       score = 95;
-      explanation = `${actualMaxHop}+ hops traversed. Extreme layering depth across multiple mule wallets.`;
+      explanation = `${actualMaxHop}+ hops traversed. Extreme layering depth across multiple intermediary mules.`;
     }
 
     if (peeling) {
@@ -157,14 +131,36 @@ export class RiskScoringEngine {
       explanation += ` Confirmed serial peeling chain pattern (${peeling.confidence}% conf).`;
     }
 
-    return { name: "Layering Depth", score, weight: 0.20, explanation };
+    return { name: "Layering Depth & Peeling", score, weight: 0.25, explanation };
   }
 
   /**
-   * Dimension 4 — Cross-Chain Complexity (weight 15%)
-   * Inter-ledger bridge flight across multiple blockchains.
+   * Dimension 3 — Structuring & Smurfing Signals (weight 20%)
    */
-  private static scoreCrossChainComplexity(
+  private static scoreStructuringSignals(patterns: FraudPattern[], nodes: ForensicNode[]): RiskDimension {
+    const smurfing = patterns.find(p => p.patternType === "SMURFING");
+
+    let score = 10;
+    let explanation = "Standard transaction sizing; no sub-threshold structuring detected.";
+
+    if (smurfing) {
+      score = smurfing.confidence;
+      explanation = `Smurfing / Structuring detected: ${smurfing.evidenceDescription}`;
+    } else {
+      const activeTransactors = nodes.filter(n => n.totalOutflowUsd > 0).length;
+      if (activeTransactors >= 4) {
+        score = 45;
+        explanation = `Transaction fragmentation observed across ${activeTransactors} recipient accounts.`;
+      }
+    }
+
+    return { name: "Sub-Threshold Structuring (Smurfing)", score, weight: 0.20, explanation };
+  }
+
+  /**
+   * Dimension 4 — Cross-Chain Flight & Bridge Obfuscation (weight 15%)
+   */
+  private static scoreCrossChainFlight(
     distinctChains: number,
     crossChainHops: CrossChainHop[],
     patterns: FraudPattern[]
@@ -177,50 +173,20 @@ export class RiskScoringEngine {
 
     if (distinctChains >= 3 || crossChainHops.length >= 2) {
       score = 95;
-      explanation = `Complex multi-bridge traversal spanning ${distinctChains} distinct blockchains (e.g. TRON, ETH, BSC). High cross-ledger obfuscation.`;
+      explanation = `Complex multi-bridge flight across ${distinctChains} distinct blockchains. High cross-ledger evasion risk.`;
     } else if (distinctChains === 2 || crossChainHops.length === 1 || bridgePattern || crossChainPattern) {
-      score = 70;
-      explanation = `Cross-chain bridge flight detected (${crossChainHops[0]?.bridgeName || "Bridge Router"}). Funds moved across ledgers to complicate single-chain tracking.`;
+      score = 75;
+      explanation = `Cross-chain bridge hop identified (${crossChainHops[0]?.bridgeName || "Bridge Protocol"}). Inter-chain movement to evade single-ledger tracking.`;
     } else {
       score = 5;
-      explanation = "Single-chain transaction. Standard on-chain tracing applies.";
+      explanation = "Single-ledger transaction trail. Standard on-chain tracing applies.";
     }
 
-    return { name: "Cross-Chain Complexity", score, weight: 0.15, explanation };
+    return { name: "Cross-Chain Flight & Obfuscation", score, weight: 0.15, explanation };
   }
 
   /**
-   * Dimension 5 — Structuring / Smurfing Signals (weight 10%)
-   * Micro-transaction structuring and rapid fund dissipation.
-   */
-  private static scoreStructuringSignals(patterns: FraudPattern[], nodes: ForensicNode[]): RiskDimension {
-    const smurfing = patterns.find(p => p.patternType === "SMURFING");
-    const sweeping = patterns.find(p => p.patternType === "VASP_SWEEPING");
-
-    let score = 10;
-    let explanation = "Standard transaction sizing; no sub-threshold structuring detected.";
-
-    if (smurfing) {
-      score = smurfing.confidence;
-      explanation = `Smurfing / Structuring detected: ${smurfing.evidenceDescription}`;
-    } else if (sweeping) {
-      score = 65;
-      explanation = "Rapid fund dissipation: high percentage of incoming volume forwarded in quick succession.";
-    } else {
-      // Check node transaction velocity
-      const totalOutflowCount = nodes.reduce((c, n) => c + (n.totalOutflowUsd > 0 ? 1 : 0), 0);
-      if (totalOutflowCount >= 4) {
-        score = 35;
-        explanation = "Moderate transaction fan-out across multiple recipient accounts.";
-      }
-    }
-
-    return { name: "Structuring / Smurfing Signals", score, weight: 0.10, explanation };
-  }
-
-  /**
-   * Dimension 6 — Sanctioned Entity Exposure (weight 5%)
-   * Direct or indirect contact with OFAC / MHA / FIU blacklisted addresses.
+   * Dimension 5 — Sanctioned Entity & High-Risk Exposure (weight 10%)
    */
   private static scoreSanctionedEntityExposure(nodes: ForensicNode[]): RiskDimension {
     const sanctionedAddrs = new Set(
@@ -248,13 +214,75 @@ export class RiskScoringEngine {
       score = 100;
       explanation = `Subject wallet is directly on the OFAC SDN List / MHA Designated List (${hitNode?.fullAddress.slice(0, 10)}...). Immediate escalation required.`;
     } else if (minSanctionedHop === 1) {
-      score = 70;
+      score = 75;
       explanation = `Direct counterparty (1 hop) to OFAC-sanctioned entity (${hitNode?.fullAddress.slice(0, 10)}...). Direct taint exposure.`;
     } else if (minSanctionedHop <= 3) {
-      score = 35;
+      score = 40;
       explanation = `Secondary exposure (${minSanctionedHop} hops) to sanctioned entity cluster.`;
     }
 
-    return { name: "Sanctioned Entity Exposure", score, weight: 0.05, explanation };
+    return { name: "Sanctioned Entity Exposure", score, weight: 0.10, explanation };
+  }
+
+  /**
+   * Dimension 6 — Automated Sweeping / Non-Holding Mule Velocity (weight 5%)
+   */
+  private static scoreAutomatedSweepingVelocity(patterns: FraudPattern[], nodes: ForensicNode[]): RiskDimension {
+    const sweepPattern = patterns.find(p => p.patternType === "VASP_SWEEPING");
+
+    let score = 10;
+    let explanation = "Normal wallet balance retention; funds are held without immediate liquidation.";
+
+    if (sweepPattern) {
+      score = sweepPattern.confidence;
+      explanation = `Automated deposit sweeping confirmed (${sweepPattern.confidence}% conf): funds cleared within minutes, typical of disposable mule accounts.`;
+    }
+
+    return { name: "Rapid Sweeping & Mule Velocity", score, weight: 0.05, explanation };
+  }
+
+  /**
+   * Independent Evaluation of VASP Attribution Confidence
+   */
+  static evaluateVaspAttribution(
+    nodes: ForensicNode[],
+    patterns: FraudPattern[]
+  ): { confidence: number; methodology: string; exchangeName?: string } {
+    const vaspNodes = nodes.filter(n =>
+      n.entityType === "VASP_HOT_WALLET" ||
+      n.entityType === "VASP_COLD_VAULT" ||
+      n.entityType === "VASP_DEPOSIT_ADDRESS"
+    );
+
+    const directMatch = vaspNodes.find(n => n.entityName);
+    const sweepPattern = patterns.find(p => p.patternType === "VASP_SWEEPING");
+
+    if (directMatch) {
+      return {
+        confidence: 99.4,
+        methodology: "DIRECT_HOT_WALLET_REGISTRY",
+        exchangeName: directMatch.entityName,
+      };
+    }
+
+    if (sweepPattern) {
+      return {
+        confidence: 88.5,
+        methodology: "TWO_STEP_SWEEPING_HEURISTIC",
+        exchangeName: "Centralized Exchange (Attributed via Deposit Sweep)",
+      };
+    }
+
+    if (vaspNodes.length > 0) {
+      return {
+        confidence: 65.0,
+        methodology: "DEPOSIT_CLUSTER",
+      };
+    }
+
+    return {
+      confidence: 15.0,
+      methodology: "UNATTRIBUTED_NON_CUSTODIAL",
+    };
   }
 }

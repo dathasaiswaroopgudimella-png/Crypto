@@ -1,12 +1,12 @@
 'use client';
 
 import { useMemo } from "react";
-import { Search, Shield, ChevronDown, CheckCircle2, ArrowUpRight, AlertTriangle, Activity, Database, FileText, Network } from "lucide-react";
+import { Search, Shield, ChevronDown, CheckCircle2, ArrowUpRight, AlertTriangle, Activity, Database, FileText, Network, FolderCheck } from "lucide-react";
 import { AUTHENTIC_FORENSIC_CASES } from "@/lib/forensic-cases";
 import { BlockchainNetwork } from "@/lib/types";
 import { detectCryptoAsset } from "@/lib/rpc/multi-chain";
 
-export type Tab = "overview" | "trace" | "vasp" | "alerts" | "legal";
+export type Tab = "overview" | "trace" | "vasp" | "alerts" | "legal" | "dossier";
 
 interface HeaderProps {
   activeTab: Tab;
@@ -22,11 +22,12 @@ interface HeaderProps {
 }
 
 const TABS: { id: Tab; label: string; icon: any }[] = [
-  { id: "overview", label: "National Overview", icon: Activity },
-  { id: "trace", label: "Fund Flow Graph & Radar", icon: Network },
-  { id: "alerts", label: "Laundering Typologies", icon: AlertTriangle },
-  { id: "vasp", label: "VASP Intelligence", icon: Database },
-  { id: "legal", label: "Section 94 BNSS Notice", icon: FileText },
+  { id: "overview", label: "National Context & Benchmarks", icon: Activity },
+  { id: "trace", label: "Investigation Studio & Graph", icon: Network },
+  { id: "alerts", label: "Laundering Typology Lab", icon: AlertTriangle },
+  { id: "vasp", label: "VASP Subpoena Directory", icon: Database },
+  { id: "legal", label: "Section 94 BNSS Notice Forge", icon: Shield },
+  { id: "dossier", label: "Case Dossier & Evidence Log", icon: FolderCheck },
 ];
 
 export default function Header({
@@ -55,7 +56,7 @@ export default function Header({
       top: 0,
       zIndex: 50,
     }}>
-      {/* Top identity bar */}
+      {/* Top institutional identity bar */}
       <div style={{
         padding: "10px 24px",
         display: "flex",
@@ -77,7 +78,7 @@ export default function Header({
               INDIAN CYBER CRIME COORDINATION CENTRE (I4C)
             </div>
             <div style={{ fontSize: 11, color: "#38bdf8", fontWeight: 600, letterSpacing: "0.03em" }}>
-              Real-Time Crypto Fraud Attribution &amp; VASP Identification System
+              Real-Time Crypto Fraud Attribution &amp; VASP Identification System (PS SIH26183)
             </div>
           </div>
         </div>
@@ -94,7 +95,7 @@ export default function Header({
           }}>
             <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#10b981", boxShadow: "0 0 8px #10b981" }} />
             <span style={{ fontSize: 11, color: "#34d399", fontWeight: 700 }}>
-              Live Blockchain Ingestion Active
+              Live Multi-Chain RPC Ingestion Active
             </span>
           </div>
           <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 600 }}>
@@ -141,7 +142,7 @@ export default function Header({
               value={searchAddress}
               onChange={(e) => setSearchAddress(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && onSearch()}
-              placeholder="Enter suspect wallet address — 0x... (ETH/Polygon/BSC), T... (TRON), bc1... (BTC), or Base58 (SOL)"
+              placeholder="Enter victim-reported suspect wallet address — 0x... (ETH/BSC), T... (TRON), bc1... (BTC), or Base58 (SOL)"
               style={{
                 width: "100%",
                 background: "#0f172a",
@@ -156,9 +157,9 @@ export default function Header({
           </div>
 
           <button
-            suppressHydrationWarning
             onClick={onSearch}
             disabled={isLoading}
+            suppressHydrationWarning
             style={{
               background: isLoading ? "#334155" : "linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%)",
               border: "none",
@@ -172,7 +173,7 @@ export default function Header({
               whiteSpace: "nowrap",
             }}
           >
-            {isLoading ? "Tracing Blockchain..." : "Trace Funds"}
+            {isLoading ? "Tracing Blockchain..." : "Trace Suspect Funds"}
           </button>
 
           {/* Benchmark Case Selector */}
@@ -191,7 +192,7 @@ export default function Header({
                 appearance: "none",
               }}
             >
-              <option value="" disabled>Load Authentic FIR Benchmark Case</option>
+              <option value="" disabled>Load Authentic CFCFRMS Case</option>
               {AUTHENTIC_FORENSIC_CASES.map(c => (
                 <option key={c.caseId} value={c.initialSuspectAddress}>
                   {c.caseId} — {c.incidentType} (₹{(c.stolenAmountInr / 100000).toFixed(1)}L)
@@ -238,16 +239,16 @@ export default function Header({
         )}
       </div>
 
-      {/* Tab navigation */}
-      <div style={{ padding: "0 24px", display: "flex", gap: 4, borderTop: "1px solid rgba(30, 41, 59, 0.6)" }}>
+      {/* 6-Tab Navigation */}
+      <div style={{ padding: "0 24px", display: "flex", gap: 4, borderTop: "1px solid rgba(30, 41, 59, 0.6)", overflowX: "auto" }}>
         {TABS.map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
           return (
             <button
-              suppressHydrationWarning
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
+              suppressHydrationWarning
               style={{
                 background: "transparent",
                 border: "none",
@@ -261,6 +262,7 @@ export default function Header({
                 alignItems: "center",
                 gap: 8,
                 transition: "all 0.15s",
+                whiteSpace: "nowrap",
               }}
             >
               <Icon size={14} color={isActive ? "#38bdf8" : "#64748b"} />

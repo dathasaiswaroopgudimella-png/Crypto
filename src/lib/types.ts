@@ -12,6 +12,7 @@ export type BlockchainNetwork =
   | "UNKNOWN";
 
 export type EntityType =
+  | "SUSPECT"
   | "VICTIM"
   | "MULE_WALLET"
   | "MIXER_OBFUSCATION"
@@ -62,6 +63,11 @@ export interface CrossChainHop {
   bridgeName: string;
   hopIndex: number;
   estimatedAmount: number;
+  originTxHash?: string;
+  destTxHash?: string;
+  destWalletAddress?: string;
+  bridgeProtocol?: string;
+  continuationSuccess?: boolean;
 }
 
 export interface AssetDetectionResult {
@@ -88,6 +94,8 @@ export interface TransactionRecord {
   isSweepingTx?: boolean;
   isBridgeTx?: boolean;
   bridgeName?: string;
+  explorerUrl?: string;
+  apiSource?: string;
 }
 
 export interface ForensicNode {
@@ -133,6 +141,35 @@ export interface ForensicEdge {
   isBridgeTx?: boolean;
   bridgeName?: string;
   detectedPatterns?: PatternType[];
+  blockNumber?: number;
+  explorerUrl?: string;
+  methodName?: string;
+  feeUsd?: number;
+  apiSource?: string;
+}
+
+export interface VaspAttributionResult {
+  name: string;
+  legalEntity?: string;
+  depositAddress: string;
+  vaultAddress: string;
+  fiuRegistered: boolean;
+  fiuNumber?: string;
+  complianceEmail: string;
+  nodalOfficer?: string;
+  jurisdiction?: string;
+  freezeRequestEmail?: string;
+  detectedAt: string;
+  confidenceScore: number; // 0–100%
+  attributionMethod:
+    | "DIRECT_HOT_WALLET_REGISTRY"
+    | "TWO_STEP_SWEEPING_HEURISTIC"
+    | "DEPOSIT_CLUSTER"
+    | "INTER_LEDGER_CONTINUATION"
+    | "HOT_WALLET_MATCH"
+    | "DEPOSIT_PATTERN"
+    | "BEHAVIORAL_CLUSTER";
+  technicalEvidence?: string;
 }
 
 export interface GraphTraceResult {
@@ -146,18 +183,12 @@ export interface GraphTraceResult {
   totalVolumeTrackedUsd: number;
   detectedPatterns: FraudPattern[];
   overallRiskScore?: RiskScore;
+  criminalRiskScore?: RiskScore;
+  destinationVasp?: VaspAttributionResult;
+  vaspAttribution?: VaspAttributionResult;
   crossChainHops: CrossChainHop[];
-  destinationVasp?: {
-    name: string;
-    depositAddress: string;
-    vaultAddress: string;
-    fiuRegistered: boolean;
-    fiuNumber?: string;
-    complianceEmail: string;
-    detectedAt: string;
-    confidenceScore: number;
-    attributionMethod: "HOT_WALLET_MATCH" | "DEPOSIT_PATTERN" | "BEHAVIORAL_CLUSTER";
-  };
+  focusPathNodeIds?: string[];
+  focusPathEdgeIds?: string[];
   highRiskEntitiesFound: string[];
   sha256StateHash: string;
   generatedAtUtc: string;

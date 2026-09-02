@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle, TrendingUp, Shield, Clock, Users, CheckCircle, Zap, Layers, ArrowRight, Lock, Activity, Scale, Building2, Globe } from "lucide-react";
+import { AlertTriangle, TrendingUp, Shield, Clock, Users, CheckCircle, Zap, Layers, ArrowRight, Lock, Activity, Scale, Building2, Globe, Compass } from "lucide-react";
 import { GraphTraceResult } from "@/lib/types";
 import { AUTHENTIC_FORENSIC_CASES } from "@/lib/forensic-cases";
 
@@ -12,9 +12,9 @@ interface OverviewTabProps {
 
 const NATIONAL_STATS = [
   { label: "Reported to 1930 Helpline (2025)", value: "28.15 Lakh", sub: "NCRP complaints lodged nationwide", icon: Users, color: "#ef4444" },
-  { label: "National Crypto Fraud Loss", value: "₹22,495 Cr", sub: "Confirmed stolen across state jurisdictions", icon: TrendingUp, color: "#f59e0b" },
+  { label: "National Crypto Fraud Loss", value: "₹22,495 Cr", sub: "Estimated stolen across state jurisdictions", icon: TrendingUp, color: "#f59e0b" },
   { label: "Manual VASP Attribution Delay", value: "21 Days", sub: "Avg. police turnaround without automation", icon: Clock, color: "#a855f7" },
-  { label: "AEGIS-TRACE Automated Attribution", value: "< 1.2 Seconds", sub: "Real-time multi-chain graph traversal", icon: Shield, color: "#10b981" },
+  { label: "Automated Attribution Benchmark", value: "< 1.2s", sub: "Multi-hop graph traversal across ledgers", icon: Shield, color: "#10b981" },
 ];
 
 const CHAIN_METRICS = [
@@ -24,11 +24,11 @@ const CHAIN_METRICS = [
   { chain: "Solana (SPL)", asset: "SOL / USDT", latency: "120ms", status: "Operational", share: "3% Fraud Flow" },
 ];
 
-export default function OverviewTab({ traceResult, onLoadCase }: OverviewTabProps) {
+export default function OverviewTab({ traceResult, onLoadCase, onNavigateTrace }: OverviewTabProps) {
   return (
     <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: 24, animation: "fadeIn 0.3s ease" }}>
 
-      {/* National Stats Telemetry Bar */}
+      {/* National Context & Benchmarks */}
       <div>
         <div style={{
           display: "flex",
@@ -37,10 +37,10 @@ export default function OverviewTab({ traceResult, onLoadCase }: OverviewTabProp
           marginBottom: 14,
         }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: "#64748b", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-            MHA / I4C National Threat Landscape &amp; Telemetry
+            National Fraud Context &amp; Benchmark Analytics (CFCFRMS / I4C Reference Data)
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#10b981" }}>
-            <Activity size={13} /> Real-Time Telemetry Stream Synchronized
+            <Activity size={13} /> Live Multi-Chain Ingestion Active
           </div>
         </div>
 
@@ -87,7 +87,7 @@ export default function OverviewTab({ traceResult, onLoadCase }: OverviewTabProp
         padding: "18px 22px",
       }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 14 }}>
-          Live Multi-Chain Forensic Ingestion Gateway Status
+          Multi-Chain Forensic Ingestion Gateway Status
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
           {CHAIN_METRICS.map(m => (
@@ -117,7 +117,7 @@ export default function OverviewTab({ traceResult, onLoadCase }: OverviewTabProp
         </div>
       </div>
 
-      {/* How the 2-Step Sweep Works & Laundering Pipeline */}
+      {/* Investigating Officer (IO) Guided Workflow */}
       <div style={{
         background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
         border: "1px solid #334155",
@@ -125,21 +125,24 @@ export default function OverviewTab({ traceResult, onLoadCase }: OverviewTabProp
         padding: "24px",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-          <Shield size={18} color="#0ea5e9" />
+          <Compass size={18} color="#0ea5e9" />
           <div style={{ fontSize: 16, fontWeight: 700, color: "#f8fafc" }}>
-            The 18-Minute Cyber Fraud Laundering Lifecycle &amp; Attribution Chokepoint
+            Investigating Officer Operational Workflow: From FIR to Asset Freeze
           </div>
         </div>
         <div style={{ fontSize: 13, color: "#94a3b8", lineHeight: 1.7, marginBottom: 20 }}>
-          Cyber fraud syndicates follow a strict, automated 4-stage pipeline to convert victim funds into untraceable cryptocurrency within 18 minutes of execution. Stolen INR enters domestic mule bank accounts, is immediately liquidated into TRC-20 USDT through informal P2P merchants, layered across throwaway non-custodial wallets via peeling chains, and finally swept into registered cryptocurrency exchanges (VASPs). AEGIS-TRACE automates reverse-graph traversal to locate the exact destination VASP and generate statutory freeze notices before the perpetrator can execute off-ramp withdrawals.
+          Cyber fraud syndicates follow rapid, automated pipelines to convert victim funds into untraceable cryptocurrency within minutes. 
+          Stolen INR enters domestic mule accounts, is converted to crypto via P2P merchants, layered across throwaway non-custodial wallets, 
+          and swept into centralized cryptocurrency exchanges (VASPs). This platform automates reverse-graph traversal to locate the exact destination VASP, 
+          identify the KYC-registered account UID, and prepare statutory Section 94 BNSS preservation notices before perpetrator off-ramps.
         </div>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
           {[
-            { step: "01", label: "Victim Ingress (INR)", detail: "Victim defrauded via Digital Arrest / Task Fraud / Sextortion. Funds transferred to mule bank account.", color: "#ef4444" },
-            { step: "02", label: "P2P Merchant Ingestion", detail: "Mule INR instantly converted to TRC-20 USDT via P2P merchants. Enters non-custodial burner wallet.", color: "#f59e0b" },
-            { step: "03", label: "Peeling Chain Layering", detail: "Rapid serial forwarding across 3–5 intermediate mule wallets to evade single-hop tracing.", color: "#a855f7" },
-            { step: "04", label: "VASP Sweep & Freeze", detail: "Micro-gas refill detected. 100% swept into VASP vault. Instant Section 94 BNSS notice issued.", color: "#10b981" },
+            { step: "01", label: "Suspect Wallet Ingestion", detail: "Victim reports wallet from 1930 / NCRP complaint. Ingested into multi-chain router.", color: "#ef4444" },
+            { step: "02", label: "Multi-Chain Graph Crawl", detail: "BFS crawler tracks peeling chains, smurfing structures, and cross-chain bridge hops.", color: "#f59e0b" },
+            { step: "03", label: "Automated VASP Attribution", detail: "Deterministic 2-step deposit sweep matching + hot wallet cluster attribution.", color: "#a855f7" },
+            { step: "04", label: "Statutory Section 94 Order", detail: "Investigation-ready BNSS §94 draft + BSA §63 cryptographic seal issued to VASP nodal officer.", color: "#10b981" },
           ].map(s => (
             <div key={s.step} style={{
               background: `${s.color}0a`,
@@ -148,12 +151,9 @@ export default function OverviewTab({ traceResult, onLoadCase }: OverviewTabProp
               padding: "16px",
             }}>
               <div style={{ fontSize: 11, fontWeight: 800, color: s.color, letterSpacing: "0.06em", marginBottom: 8 }}>
-                STAGE {s.step}
+                STEP {s.step} — {s.label}
               </div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#f8fafc", marginBottom: 6 }}>
-                {s.label}
-              </div>
-              <div style={{ fontSize: 12, color: "#94a3b8", lineHeight: 1.5 }}>
+              <div style={{ fontSize: 12, color: "#cbd5e1", lineHeight: 1.5 }}>
                 {s.detail}
               </div>
             </div>
@@ -161,70 +161,58 @@ export default function OverviewTab({ traceResult, onLoadCase }: OverviewTabProp
         </div>
       </div>
 
-      {/* Benchmark Case List */}
+      {/* Authentic Case Benchmarks */}
       <div>
-        <div style={{ fontSize: 12, fontWeight: 700, color: "#64748b", letterSpacing: "0.08em", marginBottom: 14, textTransform: "uppercase" }}>
-          Authentic MHA / I4C CFCFRMS Benchmark FIR Cases
+        <div style={{ fontSize: 12, fontWeight: 700, color: "#64748b", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 14 }}>
+          Authentic CFCFRMS Benchmark Investigation Cases
         </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {AUTHENTIC_FORENSIC_CASES.map((c) => (
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+          {AUTHENTIC_FORENSIC_CASES.map(c => (
             <div
               key={c.caseId}
+              onClick={() => onLoadCase(c.initialSuspectAddress)}
               style={{
                 background: "#0f172a",
                 border: "1px solid #1e293b",
                 borderRadius: 12,
-                padding: "18px 22px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
+                padding: "20px",
                 cursor: "pointer",
-                transition: "all 0.2s ease",
+                transition: "all 0.2s",
+                display: "flex",
+                flexDirection: "column",
+                gap: 12,
               }}
-              onClick={() => onLoadCase(c.initialSuspectAddress)}
-              onMouseEnter={(e) => e.currentTarget.style.borderColor = "#0ea5e9"}
-              onMouseLeave={(e) => e.currentTarget.style.borderColor = "#1e293b"}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "#38bdf8";
+                e.currentTarget.style.transform = "translateY(-2px)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "#1e293b";
+                e.currentTarget.style.transform = "none";
+              }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-                <div style={{
-                  width: 44, height: 44, borderRadius: 10,
-                  background: c.network === "TRON" ? "rgba(239, 68, 68, 0.12)" : c.graphData.highRiskEntitiesFound?.length > 0 ? "rgba(168, 85, 247, 0.12)" : "rgba(14, 165, 233, 0.12)",
-                  border: `1px solid ${c.network === "TRON" ? "rgba(239, 68, 68, 0.3)" : c.graphData.highRiskEntitiesFound?.length > 0 ? "rgba(168, 85, 247, 0.3)" : "rgba(14, 165, 233, 0.3)"}`,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 12, fontWeight: 800,
-                  color: c.network === "TRON" ? "#fca5a5" : c.graphData.highRiskEntitiesFound?.length > 0 ? "#c084fc" : "#38bdf8",
-                }}>
-                  {c.network}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: "#38bdf8", background: "rgba(56,189,248,0.1)", padding: "3px 8px", borderRadius: 4 }}>
+                  {c.caseId}
+                </span>
+                <span style={{ fontSize: 11, color: "#94a3b8" }}>{c.network}</span>
+              </div>
+
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#f8fafc", marginBottom: 4 }}>
+                  {c.incidentType}
                 </div>
-
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: "#f8fafc" }}>
-                      {c.caseId}
-                    </span>
-                    <span style={{ fontSize: 11, color: "#64748b" }}>•</span>
-                    <span style={{ fontSize: 12, color: "#94a3b8" }}>{c.complaintNumber}</span>
-                    <span style={{
-                      fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 4,
-                      background: "rgba(14, 165, 233, 0.15)", color: "#38bdf8", border: "1px solid rgba(14, 165, 233, 0.3)",
-                    }}>
-                      {c.incidentType}
-                    </span>
-                  </div>
-
-                  <div style={{ fontSize: 12, color: "#cbd5e1", maxWidth: 700 }}>
-                    {c.caseSummary.slice(0, 140)}...
-                  </div>
+                <div style={{ fontSize: 12, color: "#94a3b8", lineHeight: 1.5 }}>
+                  {c.caseSummary.slice(0, 140)}...
                 </div>
               </div>
 
-              <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: "#ef4444" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: "1px solid #1e293b", paddingTop: 12, marginTop: "auto" }}>
+                <div>
+                  <div style={{ fontSize: 10, color: "#64748b" }}>STOLEN VALUE</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "#10b981" }}>
                     ₹{(c.stolenAmountInr / 100000).toFixed(1)} Lakh
-                  </div>
-                  <div style={{ fontSize: 11, color: "#10b981", fontWeight: 600 }}>
-                    Swept to {c.attributedVasp}
                   </div>
                 </div>
 

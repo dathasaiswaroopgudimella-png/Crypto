@@ -114,11 +114,11 @@ export default function LegalTab({ traceResult }: LegalTabProps) {
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
             <Scale size={18} color="#0ea5e9" />
             <div style={{ fontSize: 17, fontWeight: 700, color: "#f8fafc" }}>
-              Section 94 BNSS Statutory Notice &amp; Section 63 BSA Evidence Generator
+              Investigation-Ready Section 94 BNSS Notice Draft &amp; Section 63 BSA Certificate
             </div>
           </div>
           <div style={{ fontSize: 13, color: "#94a3b8" }}>
-            Generates formal law enforcement production and asset-freezing orders legally binding on FIU-IND registered cryptocurrency exchanges under the Bharatiya Nagarik Suraksha Sanhita (BNSS 2023).
+            Generates an investigation-ready draft statutory notice for authorized officer review and issuance under Section 94 of the Bharatiya Nagarik Suraksha Sanhita (BNSS 2023) and Section 63 of the Bharatiya Sakshya Adhiniyam (BSA 2023).
           </div>
         </div>
 

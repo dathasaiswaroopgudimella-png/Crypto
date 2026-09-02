@@ -7,6 +7,7 @@ import TraceTab from "@/components/TraceTab";
 import AlertsTab from "@/components/AlertsTab";
 import VaspTab from "@/components/VaspTab";
 import LegalTab from "@/components/LegalTab";
+import DossierTab from "@/components/DossierTab";
 import { GraphTraceResult, BlockchainNetwork } from "@/lib/types";
 
 export default function Home() {
@@ -66,6 +67,10 @@ export default function Home() {
     setActiveTab("trace");
   }, []);
 
+  const handleNavigateDossier = useCallback(() => {
+    setActiveTab("dossier");
+  }, []);
+
   const alertCount = traceResult?.detectedPatterns?.length || 0;
 
   return (
@@ -96,6 +101,7 @@ export default function Home() {
             traceResult={traceResult}
             isLoading={isLoading}
             onRequestNotice={handleRequestNotice}
+            onNavigateDossier={handleNavigateDossier}
           />
         )}
         {activeTab === "alerts" && (
@@ -112,6 +118,13 @@ export default function Home() {
           />
         )}
         {activeTab === "legal" && <LegalTab traceResult={traceResult} />}
+        {activeTab === "dossier" && (
+          <DossierTab
+            traceResult={traceResult}
+            onNavigateTrace={handleNavigateTrace}
+            onRequestNotice={handleRequestNotice}
+          />
+        )}
       </main>
     </div>
   );
