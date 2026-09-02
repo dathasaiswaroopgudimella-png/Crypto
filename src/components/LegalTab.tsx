@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { GraphTraceResult, Section94NoticeData } from "@/lib/types";
-import { FileText, Download, Copy, AlertTriangle, Shield, CheckCircle } from "lucide-react";
+import { FileText, Download, Copy, AlertTriangle, Shield, CheckCircle2, Lock, Scale, Printer } from "lucide-react";
 
 interface LegalTabProps {
   traceResult: GraphTraceResult | null;
@@ -33,34 +33,45 @@ export default function LegalTab({ traceResult }: LegalTabProps) {
   const copyToClipboard = () => {
     if (!notice) return;
     const text = [
-      `STATUTORY NOTICE UNDER SECTION 94 BNSS, 2023`,
+      `================================================================================`,
+      `LEGAL NOTICE UNDER SECTION 94 OF THE BHARATIYA NAGARIK SURAKSHA SANHITA (BNSS 2023)`,
+      `ORDER TO FREEZE PROCEEDS OF CRIME AND PRODUCE KYC DOCUMENTATION`,
+      `================================================================================`,
       `Notice Reference: ${notice.noticeId}`,
-      `Date: ${notice.date}`,
+      `Date of Issuance: ${notice.date}`,
       ``,
-      `TO: ${notice.vaspRecipient.name} (${notice.vaspRecipient.legalEntityName})`,
-      `Compliance Email: ${notice.vaspRecipient.complianceEmail}`,
+      `TO:`,
+      `Compliance Officer / Nodal Grievance Officer`,
+      `${notice.vaspRecipient.name} (${notice.vaspRecipient.legalEntityName})`,
+      `FIU-IND Registration Number: ${notice.vaspRecipient.fiuNumber || "Pending Formal Registration"}`,
+      `Official Service Email: ${notice.vaspRecipient.complianceEmail}`,
       ``,
-      `CASE REFERENCE: ${notice.complaintDetails.ackNumber1930}`,
-      `Victim: ${notice.complaintDetails.victimName}`,
-      `Stolen Amount: Rs. ${notice.complaintDetails.stolenAmountInr.toLocaleString()} (${notice.complaintDetails.stolenAmountUsdt.toLocaleString()} USDT)`,
+      `CASE PARTICULARS:`,
+      `CFCFRMS / NCRP Acknowledgement: ${notice.complaintDetails.ackNumber1930}`,
+      `Complainant / Victim: ${notice.complaintDetails.victimName}`,
+      `Loss Amount: INR ${notice.complaintDetails.stolenAmountInr.toLocaleString("en-IN")} (Equiv. ${notice.complaintDetails.stolenAmountUsdt.toLocaleString()} USDT)`,
+      `Initial Ingress Suspect Wallet: ${notice.complaintDetails.suspectInitialAddress}`,
       ``,
-      `FORENSIC TRAIL:`,
-      notice.forensicTrail.hopPath.join(" → "),
+      `ON-CHAIN FORENSIC ATTRIBUTION TRAIL:`,
+      notice.forensicTrail.hopPath.join("  ───[Hop]───>  "),
       ``,
-      `Deposit Address: ${notice.forensicTrail.depositAddress}`,
-      `Transaction Hash: ${notice.forensicTrail.depositTxHash}`,
-      `Amount Deposited: ${notice.forensicTrail.depositAmountUsdt.toLocaleString()} USDT`,
-      `Swept To Vault: ${notice.forensicTrail.vaultSweptTo}`,
+      `Destination Exchange Deposit Wallet: ${notice.forensicTrail.depositAddress}`,
+      `Transaction Ingestion Hash: ${notice.forensicTrail.depositTxHash}`,
+      `Amount Swept into Exchange Custody: ${notice.forensicTrail.depositAmountUsdt.toLocaleString()} USDT`,
+      `Internal Vault Consolidation Address: ${notice.forensicTrail.vaultSweptTo}`,
       ``,
-      `STATUTORY DIRECTIVES:`,
-      ...notice.statutoryDirectives.map((d, i) => `${i + 1}. ${d}`),
+      `STATUTORY DIRECTIVES (MANDATORY COMPLIANCE WITHIN 24 HOURS):`,
+      ...notice.statutoryDirectives.map((d, i) => `[${i + 1}] ${d}`),
       ``,
-      `CRYPTOGRAPHIC VERIFICATION (Section 63 BSA, 2023):`,
+      `CRYPTOGRAPHIC INTEGRITY SEAL (SECTION 63 BHARATIYA SAKSHYA ADHINIYAM, 2023):`,
       `SHA-256 State Hash: ${notice.cryptographicVerification.sha256Hash}`,
+      `Statutory Certificate: ${notice.cryptographicVerification.bsaSection63Clause}`,
       ``,
-      `Issued by: ${notice.investigatingOfficer.name}`,
+      `ISSUED UNDER SEAL OF:`,
+      `${notice.investigatingOfficer.name}`,
       `${notice.investigatingOfficer.designation}`,
-      `${notice.investigatingOfficer.policeStation}`,
+      `${notice.investigatingOfficer.policeStation}, ${notice.investigatingOfficer.district}, ${notice.investigatingOfficer.state}`,
+      `Official Email: ${notice.investigatingOfficer.contactEmail}`,
     ].join("\n");
 
     navigator.clipboard.writeText(text);
@@ -68,217 +79,247 @@ export default function LegalTab({ traceResult }: LegalTabProps) {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   if (!traceResult) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "60vh", gap: 12 }}>
-        <FileText size={40} color="#1e2d45" />
-        <div style={{ fontSize: 16, fontWeight: 600, color: "#475569" }}>No trace loaded</div>
-        <div style={{ fontSize: 13, color: "#374151" }}>Complete a forensic trace first to generate a statutory notice</div>
-      </div>
-    );
-  }
-
-  if (!traceResult.destinationVasp) {
-    return (
-      <div style={{ padding: 24 }}>
-        <div className="glass-card" style={{ padding: 24, textAlign: "center", borderColor: "rgba(245,158,11,0.3)" }}>
-          <AlertTriangle size={32} color="#f59e0b" style={{ margin: "0 auto 12px" }} />
-          <div style={{ fontSize: 15, fontWeight: 600, color: "#fcd34d", marginBottom: 8 }}>Destination VASP Not Yet Confirmed</div>
-          <div style={{ fontSize: 13, color: "#94a3b8", lineHeight: 1.7 }}>
-            The forensic trace has identified high-risk obfuscation activity but the funds have entered a mixer contract rather than a FIU-registered exchange. Section 94 BNSS notices can only be issued to VASPs with FIU-IND registration. Consider filing for international mutual legal assistance (MLAT) or contacting OFAC for Tornado Cash attribution.
-          </div>
+      <div style={{
+        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+        height: "60vh", gap: 14, color: "#64748b",
+      }}>
+        <FileText size={48} color="#334155" />
+        <div style={{ fontSize: 16, fontWeight: 700, color: "#94a3b8" }}>No Forensic Trace Active</div>
+        <div style={{ fontSize: 13, color: "#64748b" }}>
+          Execute a trace from the Command Overview or Fund Flow Graph to generate court-admissible statutory notices.
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
-      {/* Generator panel */}
-      <div className="glass-card" style={{ padding: 20 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#f1f5f9", marginBottom: 4 }}>
-              Section 94 BNSS Statutory Freezing Notice
-            </div>
-            <div style={{ fontSize: 12, color: "#94a3b8" }}>
-              Automatically generated from forensic trace data. Addresses: {traceResult.destinationVasp.name} ({traceResult.destinationVasp.fiuNumber})
+    <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: 20, animation: "fadeIn 0.3s ease" }}>
+      {/* Top Action Header */}
+      <div style={{
+        background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
+        border: "1px solid #334155",
+        borderRadius: 12,
+        padding: "20px 24px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+      }}>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+            <Scale size={18} color="#0ea5e9" />
+            <div style={{ fontSize: 17, fontWeight: 700, color: "#f8fafc" }}>
+              Section 94 BNSS Statutory Notice &amp; Section 63 BSA Evidence Generator
             </div>
           </div>
+          <div style={{ fontSize: 13, color: "#94a3b8" }}>
+            Generates formal law enforcement production and asset-freezing orders legally binding on FIU-IND registered cryptocurrency exchanges under the Bharatiya Nagarik Suraksha Sanhita (BNSS 2023).
+          </div>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button
             onClick={generateNotice}
             disabled={loading}
             style={{
-              background: loading ? "#1e2d45" : "linear-gradient(135deg, #991b1b, #dc2626)",
-              border: "none", borderRadius: 8,
-              padding: "10px 20px", fontSize: 13, fontWeight: 700, color: "white",
-              cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.7 : 1,
-              display: "flex", alignItems: "center", gap: 8,
+              background: "linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%)",
+              border: "none",
+              borderRadius: 8,
+              padding: "9px 20px",
+              fontSize: 12,
+              fontWeight: 700,
+              color: "white",
+              cursor: loading ? "not-allowed" : "pointer",
+              boxShadow: "0 0 16px rgba(14, 165, 233, 0.4)",
             }}
           >
-            <FileText size={15} />
-            {loading ? "Generating..." : "Generate Notice"}
+            {loading ? "Forging Legal Document..." : notice ? "Regenerate Notice" : "Forge Statutory Notice"}
           </button>
         </div>
       </div>
 
-      {/* Rendered notice */}
-      {notice && (
-        <div>
-          <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
-            <button
-              onClick={copyToClipboard}
-              style={{
-                background: "#111827", border: "1px solid #1e2d45",
-                borderRadius: 7, padding: "7px 14px", fontSize: 12, fontWeight: 600,
-                color: copied ? "#34d399" : "#94a3b8", cursor: "pointer",
-                display: "flex", alignItems: "center", gap: 6,
-              }}
-            >
-              {copied ? <CheckCircle size={13} /> : <Copy size={13} />}
-              {copied ? "Copied to clipboard" : "Copy full notice"}
-            </button>
-            <button
-              onClick={() => window.print()}
-              style={{
-                background: "#111827", border: "1px solid #1e2d45",
-                borderRadius: 7, padding: "7px 14px", fontSize: 12, fontWeight: 600,
-                color: "#94a3b8", cursor: "pointer",
-                display: "flex", alignItems: "center", gap: 6,
-              }}
-            >
-              <Download size={13} />
-              Print / Export PDF
-            </button>
+      {/* Notice Document Viewer */}
+      {notice ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Action Toolbar */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#10b981" }}>
+              <CheckCircle2 size={14} /> Document Forged with SHA-256 State Hash Verification Seal
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <button
+                onClick={copyToClipboard}
+                style={{
+                  background: "#0f172a",
+                  border: "1px solid #334155",
+                  borderRadius: 8,
+                  padding: "7px 14px",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: copied ? "#10b981" : "#f8fafc",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                <Copy size={13} /> {copied ? "Copied to Clipboard!" : "Copy Formatted Text"}
+              </button>
+
+              <button
+                onClick={handlePrint}
+                style={{
+                  background: "#0f172a",
+                  border: "1px solid #334155",
+                  borderRadius: 8,
+                  padding: "7px 14px",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: "#38bdf8",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                <Printer size={13} /> Print Official Notice (PDF)
+              </button>
+            </div>
           </div>
 
-          <div ref={printRef} style={{
-            background: "#111827", border: "1px solid #1e2d45",
-            borderRadius: 12, padding: 32, fontFamily: "Georgia, serif",
-          }}>
-            {/* Notice header */}
-            <div style={{ textAlign: "center", marginBottom: 28, borderBottom: "2px solid #1e2d45", paddingBottom: 20 }}>
-              <div style={{ fontSize: 11, letterSpacing: "0.1em", color: "#475569", marginBottom: 6 }}>GOVERNMENT OF INDIA — MINISTRY OF HOME AFFAIRS</div>
-              <div style={{ fontSize: 11, letterSpacing: "0.1em", color: "#475569", marginBottom: 14 }}>INDIAN CYBER CRIME COORDINATION CENTRE (I4C)</div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: "#f1f5f9", marginBottom: 6 }}>
-                NOTICE UNDER SECTION 94 OF BHARATIYA NAGARIK SURAKSHA SANHITA (BNSS), 2023
+          {/* Legal Document Parchment Card */}
+          <div
+            ref={printRef}
+            style={{
+              background: "#0c1322",
+              border: "1.5px solid #1e293b",
+              borderRadius: 12,
+              padding: "36px 40px",
+              color: "#e2e8f0",
+              fontFamily: "Inter, sans-serif",
+              lineHeight: 1.7,
+              boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+            }}
+          >
+            {/* Header */}
+            <div style={{ textAlign: "center", borderBottom: "2px solid #334155", paddingBottom: 20, marginBottom: 24 }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: "#94a3b8", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                INDIAN CYBER CRIME COORDINATION CENTRE (I4C) · CIS DIVISION
               </div>
-              <div style={{ fontSize: 13, color: "#94a3b8" }}>Reference Number: {notice.noticeId}</div>
-              <div style={{ fontSize: 13, color: "#94a3b8" }}>Date: {notice.date}</div>
+              <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
+                MINISTRY OF HOME AFFAIRS · GOVERNMENT OF INDIA
+              </div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: "#f8fafc", marginTop: 12, letterSpacing: "-0.01em" }}>
+                STATUTORY PRODUCTION &amp; ASSET FREEZING ORDER
+              </div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#0ea5e9", marginTop: 4 }}>
+                ISSUED UNDER SECTION 94 OF THE BHARATIYA NAGARIK SURAKSHA SANHITA (BNSS 2023)
+              </div>
             </div>
 
-            {/* Addressed to */}
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#f1f5f9", marginBottom: 4 }}>TO:</div>
-              <div style={{ fontSize: 13, color: "#94a3b8", lineHeight: 1.8 }}>
-                The Nodal Officer / Compliance Head<br />
-                <strong style={{ color: "#f1f5f9" }}>{notice.vaspRecipient.name}</strong> ({notice.vaspRecipient.legalEntityName})<br />
-                FIU-IND Registration: {notice.vaspRecipient.fiuNumber || "Pending Verification"}<br />
-                Email: {notice.vaspRecipient.complianceEmail}
+            {/* Meta Row */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24, fontSize: 12 }}>
+              <div>
+                <span style={{ color: "#64748b" }}>Notice ID:</span> <strong>{notice.noticeId}</strong><br />
+                <span style={{ color: "#64748b" }}>Date of Issuance:</span> <strong>{notice.date}</strong><br />
+                <span style={{ color: "#64748b" }}>CFCFRMS / 1930 Ref:</span> <strong>{notice.complaintDetails.ackNumber1930}</strong>
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <span style={{ color: "#64748b" }}>Recipient VASP:</span> <strong>{notice.vaspRecipient.name}</strong><br />
+                <span style={{ color: "#64748b" }}>Legal Entity:</span> {notice.vaspRecipient.legalEntityName}<br />
+                <span style={{ color: "#64748b" }}>FIU-IND Registration:</span> <strong style={{ color: "#10b981" }}>{notice.vaspRecipient.fiuNumber || "Registered"}</strong>
               </div>
             </div>
 
-            {/* Case reference */}
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#f1f5f9", marginBottom: 8 }}>CASE REFERENCE & COMPLAINT DETAILS</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                {[
-                  { k: "1930 Helpline ACK Number", v: notice.complaintDetails.ackNumber1930 },
-                  { k: "Date of Incident", v: notice.complaintDetails.crimeDate },
-                  { k: "Victim's Name", v: notice.complaintDetails.victimName },
-                  { k: "Stolen Amount", v: `Rs. ${notice.complaintDetails.stolenAmountInr.toLocaleString()} (${notice.complaintDetails.stolenAmountUsdt.toLocaleString()} USDT)` },
-                  { k: "Victim's Bank Account", v: notice.complaintDetails.sourceBankOrAccount },
-                  { k: "Initial Suspect Address", v: notice.complaintDetails.suspectInitialAddress },
-                ].map(item => (
-                  <div key={item.k} style={{ background: "#0f1629", borderRadius: 6, padding: "8px 12px" }}>
-                    <div style={{ fontSize: 10, color: "#475569" }}>{item.k}</div>
-                    <div style={{ fontSize: 12, color: "#f1f5f9", fontFamily: item.k.includes("Address") ? "monospace" : "inherit", marginTop: 2, wordBreak: "break-all" }}>{item.v}</div>
+            {/* Case Background & Victim Particulars */}
+            <div style={{ marginBottom: 20, fontSize: 13 }}>
+              <strong>1. Case Particulars &amp; Crime Ingress:</strong><br />
+              A formal complaint has been registered by victim <strong>{notice.complaintDetails.victimName}</strong> regarding stolen funds amounting to <strong>₹{notice.complaintDetails.stolenAmountInr.toLocaleString("en-IN")} ({notice.complaintDetails.stolenAmountUsdt.toLocaleString()} USDT)</strong>. Initial funds were traced to suspect ingress address <code style={{ color: "#38bdf8", background: "#0a0f1d", padding: "2px 6px", borderRadius: 4 }}>{notice.complaintDetails.suspectInitialAddress}</code>.
+            </div>
+
+            {/* Forensic Attribution Path */}
+            <div style={{ marginBottom: 20, fontSize: 13 }}>
+              <strong>2. Automated Multi-Hop On-Chain Attribution Trail:</strong><br />
+              <div style={{
+                background: "#0a0f1d", border: "1px solid #1e293b",
+                borderRadius: 8, padding: "12px 16px", marginTop: 8, fontFamily: "monospace", fontSize: 11, color: "#93c5fd",
+                wordBreak: "break-all", lineHeight: 1.8,
+              }}>
+                {notice.forensicTrail.hopPath.join("  ──>[Hop]──>  ")}
+              </div>
+              <div style={{ marginTop: 8, fontSize: 12, color: "#cbd5e1" }}>
+                The target funds entered your exchange deposit address <code>{notice.forensicTrail.depositAddress}</code> via transaction hash <code>{notice.forensicTrail.depositTxHash}</code> and were subsequently consolidated into internal vault <code>{notice.forensicTrail.vaultSweptTo}</code>.
+              </div>
+            </div>
+
+            {/* Statutory Directives */}
+            <div style={{ marginBottom: 24, fontSize: 13 }}>
+              <strong>3. Statutory Mandates (Mandatory Compliance within 24 Hours):</strong>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
+                {notice.statutoryDirectives.map((directive, idx) => (
+                  <div key={idx} style={{ display: "flex", gap: 8, fontSize: 12, color: "#cbd5e1" }}>
+                    <strong style={{ color: "#0ea5e9" }}>[{idx + 1}]</strong>
+                    <span>{directive}</span>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Forensic trail */}
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#f1f5f9", marginBottom: 8 }}>CRYPTOGRAPHIC FORENSIC TRAIL</div>
-              <div style={{ background: "#0f1629", borderRadius: 8, padding: 14, marginBottom: 10 }}>
-                <div style={{ fontSize: 11, color: "#475569", marginBottom: 6 }}>Fund Path (Victim to Exchange Vault)</div>
-                <div style={{ fontSize: 11, fontFamily: "monospace", color: "#94a3b8", lineHeight: 1.8 }}>
-                  {notice.forensicTrail.hopPath.join(" →\n")}
-                </div>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                {[
-                  { k: "Exchange Deposit Address", v: notice.forensicTrail.depositAddress },
-                  { k: "Deposit Transaction Hash", v: notice.forensicTrail.depositTxHash },
-                  { k: "Amount Deposited", v: `${notice.forensicTrail.depositAmountUsdt.toLocaleString()} USDT` },
-                  { k: "Swept to Vault Address", v: notice.forensicTrail.vaultSweptTo },
-                ].map(item => (
-                  <div key={item.k} style={{ background: "#0f1629", borderRadius: 6, padding: "8px 12px" }}>
-                    <div style={{ fontSize: 10, color: "#475569" }}>{item.k}</div>
-                    <div style={{ fontSize: 11, color: "#f1f5f9", fontFamily: "monospace", marginTop: 2, wordBreak: "break-all" }}>{item.v}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Directives */}
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#f1f5f9", marginBottom: 10 }}>STATUTORY DIRECTIVES</div>
-              {notice.statutoryDirectives.map((d, i) => (
-                <div key={i} style={{
-                  display: "flex", gap: 12, marginBottom: 12,
-                  background: "#0f1629", borderRadius: 8, padding: 14,
-                  borderLeft: "3px solid #dc2626",
-                }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: "#dc2626", minWidth: 24 }}>{i + 1}.</div>
-                  <div style={{ fontSize: 12, color: "#94a3b8", lineHeight: 1.7 }}>{d}</div>
-                </div>
-              ))}
-            </div>
-
-            {/* BSA Certificate */}
+            {/* Section 63 BSA Cryptographic State Seal */}
             <div style={{
-              background: "rgba(16,185,129,0.05)", border: "1px solid rgba(16,185,129,0.2)",
-              borderRadius: 8, padding: 16, marginBottom: 20,
+              background: "rgba(14, 165, 233, 0.05)",
+              border: "1px solid rgba(14, 165, 233, 0.25)",
+              borderRadius: 8,
+              padding: "16px",
+              marginBottom: 24,
+              fontSize: 11,
             }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                <Shield size={16} color="#10b981" />
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#34d399" }}>
-                  Electronic Evidence Certificate — Section 63 BSA, 2023
-                </div>
+              <div style={{ fontWeight: 700, color: "#38bdf8", marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
+                <Lock size={12} /> Section 63 Bharatiya Sakshya Adhiniyam (BSA 2023) Electronic Hash Certificate
               </div>
-              <div style={{ fontSize: 12, color: "#94a3b8", lineHeight: 1.7 }}>
+              <div style={{ fontFamily: "monospace", fontSize: 10, color: "#94a3b8", wordBreak: "break-all" }}>
+                SHA-256 State Seal: {notice.cryptographicVerification.sha256Hash}
+              </div>
+              <div style={{ color: "#cbd5e1", marginTop: 4, fontSize: 11 }}>
                 {notice.cryptographicVerification.bsaSection63Clause}
               </div>
-              <div style={{ marginTop: 10 }}>
-                <div style={{ fontSize: 10, color: "#475569" }}>SHA-256 State Hash</div>
-                <div style={{ fontFamily: "monospace", fontSize: 11, color: "#10b981", wordBreak: "break-all", marginTop: 4 }}>
-                  {notice.cryptographicVerification.sha256Hash}
-                </div>
-              </div>
             </div>
 
-            {/* Signature block */}
-            <div style={{ borderTop: "2px solid #1e2d45", paddingTop: 20 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#f1f5f9", marginBottom: 8 }}>Issued By</div>
-                  <div style={{ fontSize: 12, color: "#94a3b8", lineHeight: 1.8 }}>
-                    {notice.investigatingOfficer.name}<br />
-                    {notice.investigatingOfficer.designation}<br />
-                    {notice.investigatingOfficer.policeStation}<br />
-                    {notice.investigatingOfficer.district}, {notice.investigatingOfficer.state}<br />
-                    {notice.investigatingOfficer.contactEmail}
-                  </div>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "#f1f5f9", marginBottom: 40 }}>Official Seal & Signature</div>
-                  <div style={{ width: 160, height: 1, background: "#1e2d45", marginLeft: "auto" }} />
-                  <div style={{ fontSize: 12, color: "#475569", marginTop: 6 }}>Authorized Investigator</div>
-                </div>
+            {/* Officer Sign-off */}
+            <div style={{ borderTop: "1px solid #334155", paddingTop: 16, display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+              <div>
+                <strong>Investigating Officer:</strong> {notice.investigatingOfficer.name}<br />
+                {notice.investigatingOfficer.designation}<br />
+                {notice.investigatingOfficer.policeStation}, {notice.investigatingOfficer.district}
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <strong>Contact Email:</strong> {notice.investigatingOfficer.contactEmail}<br />
+                <strong>Helpline Ref:</strong> 1930 (CFCFRMS / I4C)
               </div>
             </div>
+          </div>
+        </div>
+      ) : (
+        <div style={{
+          background: "#0f172a",
+          border: "1px dashed #334155",
+          borderRadius: 12,
+          padding: "48px 24px",
+          textAlign: "center",
+          color: "#94a3b8",
+        }}>
+          <Shield size={40} color="#0ea5e9" style={{ margin: "0 auto 12px" }} />
+          <div style={{ fontSize: 16, fontWeight: 700, color: "#f8fafc", marginBottom: 6 }}>
+            Ready to Forge Section 94 BNSS Statutory Notice
+          </div>
+          <div style={{ fontSize: 13, color: "#94a3b8", maxWidth: 500, margin: "0 auto 18px" }}>
+            Click the &quot;Forge Statutory Notice&quot; button above to populate the verified VASP compliance recipient, forensic transaction hop trail, and Section 63 BSA cryptographic state seal.
           </div>
         </div>
       )}

@@ -1,14 +1,13 @@
 'use client';
 
 import { useState, useCallback } from "react";
-import Header from "@/components/Header";
+import Header, { Tab } from "@/components/Header";
 import OverviewTab from "@/components/OverviewTab";
 import TraceTab from "@/components/TraceTab";
+import AlertsTab from "@/components/AlertsTab";
 import VaspTab from "@/components/VaspTab";
 import LegalTab from "@/components/LegalTab";
 import { GraphTraceResult, BlockchainNetwork } from "@/lib/types";
-
-type Tab = "overview" | "trace" | "vasp" | "legal";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<Tab>("overview");
@@ -55,8 +54,14 @@ export default function Home() {
     setActiveTab("legal");
   }, []);
 
+  const handleNavigateTrace = useCallback(() => {
+    setActiveTab("trace");
+  }, []);
+
+  const alertCount = traceResult?.detectedPatterns?.length || 0;
+
   return (
-    <div style={{ minHeight: "100vh", background: "#0a0e1a" }}>
+    <div style={{ minHeight: "100vh", background: "#0a0f1d", color: "#f8fafc" }}>
       <Header
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -67,6 +72,7 @@ export default function Home() {
         onSearch={() => runTrace(undefined, false)}
         isLoading={isLoading}
         onSelectCase={handleSelectCase}
+        alertCount={alertCount}
       />
 
       <main>
@@ -74,12 +80,20 @@ export default function Home() {
           <OverviewTab
             traceResult={traceResult}
             onLoadCase={handleSelectCase}
+            onNavigateTrace={handleNavigateTrace}
           />
         )}
         {activeTab === "trace" && (
           <TraceTab
             traceResult={traceResult}
             isLoading={isLoading}
+            onRequestNotice={handleRequestNotice}
+          />
+        )}
+        {activeTab === "alerts" && (
+          <AlertsTab
+            traceResult={traceResult}
+            onNavigateTrace={handleNavigateTrace}
             onRequestNotice={handleRequestNotice}
           />
         )}

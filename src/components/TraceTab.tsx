@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import ReactFlow, {
   Background,
   Controls,
@@ -12,10 +12,11 @@ import ReactFlow, {
   BackgroundVariant,
   Handle,
   Position,
+  MarkerType,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { GraphTraceResult, ForensicNode } from "@/lib/types";
-import { Shield, AlertTriangle, X, Zap, ExternalLink } from "lucide-react";
+import { GraphTraceResult, ForensicNode, PatternType } from "@/lib/types";
+import { Shield, AlertTriangle, X, Zap, ExternalLink, FileText, CheckCircle2, Sparkles, Copy, Activity, Layers, ArrowRight } from "lucide-react";
 
 interface TraceTabProps {
   traceResult: GraphTraceResult | null;
@@ -23,348 +24,516 @@ interface TraceTabProps {
   onRequestNotice: () => void;
 }
 
-const NODE_COLORS: Record<string, { bg: string; border: string; text: string }> = {
-  VICTIM: { bg: "#1a0a0a", border: "#ef4444", text: "#fca5a5" },
-  MULE_WALLET: { bg: "#1a1408", border: "#f59e0b", text: "#fcd34d" },
-  MIXER_OBFUSCATION: { bg: "#180d2e", border: "#8b5cf6", text: "#c4b5fd" },
-  VASP_DEPOSIT_ADDRESS: { bg: "#0a1628", border: "#3b82f6", text: "#93c5fd" },
-  VASP_HOT_WALLET: { bg: "#081a12", border: "#10b981", text: "#6ee7b7" },
-  VASP_COLD_VAULT: { bg: "#081a12", border: "#10b981", text: "#6ee7b7" },
-  UNKNOWN: { bg: "#111827", border: "#475569", text: "#94a3b8" },
+const NODE_THEMES: Record<string, { bg: string; border: string; text: string; glow: string }> = {
+  VICTIM: { bg: "#1e131d", border: "#f43f5e", text: "#fda4af", glow: "rgba(244, 63, 94, 0.3)" },
+  MULE_WALLET: { bg: "#1f1810", border: "#f59e0b", text: "#fde68a", glow: "rgba(245, 158, 11, 0.3)" },
+  MIXER_OBFUSCATION: { bg: "#1e122b", border: "#a855f7", text: "#e9d5ff", glow: "rgba(168, 85, 247, 0.3)" },
+  BRIDGE_CONTRACT: { bg: "#101c2b", border: "#06b6d4", text: "#a5f3fc", glow: "rgba(6, 182, 212, 0.3)" },
+  VASP_DEPOSIT_ADDRESS: { bg: "#0f172a", border: "#38bdf8", text: "#bae6fd", glow: "rgba(56, 189, 248, 0.3)" },
+  VASP_HOT_WALLET: { bg: "#0d2018", border: "#10b981", text: "#a7f3d0", glow: "rgba(16, 185, 129, 0.3)" },
+  VASP_COLD_VAULT: { bg: "#0d2018", border: "#10b981", text: "#a7f3d0", glow: "rgba(16, 185, 129, 0.3)" },
+  UNKNOWN: { bg: "#0f172a", border: "#475569", text: "#cbd5e1", glow: "rgba(71, 85, 105, 0.2)" },
 };
 
 function ForensicNodeCard({ data }: { data: ForensicNode }) {
-  const palette = NODE_COLORS[data.entityType] || NODE_COLORS.UNKNOWN;
+  const theme = NODE_THEMES[data.entityType] || NODE_THEMES.UNKNOWN;
+
   return (
     <div style={{
-      background: palette.bg,
-      border: `1.5px solid ${palette.border}`,
-      borderRadius: 10,
-      padding: "12px 14px",
-      minWidth: 220,
-      maxWidth: 250,
-      boxShadow: `0 0 14px ${palette.border}25`,
+      background: theme.bg,
+      border: `1.5px solid ${theme.border}`,
+      borderRadius: 12,
+      padding: "14px 16px",
+      minWidth: 240,
+      maxWidth: 270,
+      boxShadow: `0 0 20px ${theme.glow}`,
       position: "relative",
     }}>
-      <Handle type="target" position={Position.Left} style={{ background: palette.border, width: 8, height: 8 }} />
+      <Handle type="target" position={Position.Left} style={{ background: theme.border, width: 8, height: 8 }} />
 
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-        <div style={{
-          width: 6, height: 6, borderRadius: "50%",
-          background: palette.border,
-          boxShadow: `0 0 6px ${palette.border}`,
-        }} />
-        <div style={{ fontSize: 10, fontWeight: 700, color: palette.text, letterSpacing: "0.05em" }}>
-          {data.entityType.replace(/_/g, " ")}
+      {/* Header Badge */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{
+            width: 6, height: 6, borderRadius: "50%",
+            background: theme.border,
+            boxShadow: `0 0 6px ${theme.border}`,
+          }} />
+          <span style={{ fontSize: 10, fontWeight: 800, color: theme.text, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+            {data.entityType.replace(/_/g, " ")}
+          </span>
         </div>
+
         <span style={{
-          fontSize: 9, padding: "1px 5px", borderRadius: 4,
-          background: "rgba(59,130,246,0.15)", color: "#60a5fa",
-          border: "1px solid rgba(59,130,246,0.3)", fontWeight: 700,
-          marginLeft: "auto",
+          fontSize: 9, padding: "2px 6px", borderRadius: 4,
+          background: "rgba(14, 165, 233, 0.15)", color: "#38bdf8",
+          border: "1px solid rgba(14, 165, 233, 0.3)", fontWeight: 800,
         }}>
           {data.network}
         </span>
       </div>
 
-      <div style={{ fontSize: 12, fontWeight: 600, color: "#f1f5f9", marginBottom: 4 }}>
+      {/* Node Name / Label */}
+      <div style={{ fontSize: 13, fontWeight: 700, color: "#f8fafc", marginBottom: 4 }}>
         {data.entityName || data.label}
       </div>
 
-      <div style={{ fontFamily: "monospace", fontSize: 10, color: "#94a3b8", marginBottom: 8 }}>
+      {/* Address */}
+      <div style={{ fontFamily: "monospace", fontSize: 10, color: "#94a3b8", marginBottom: 10 }}>
         {data.fullAddress.slice(0, 10)}...{data.fullAddress.slice(-6)}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, borderTop: "1px solid #1e2d45", paddingTop: 8 }}>
+      {/* Metrics Row */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 8 }}>
         <div>
-          <div style={{ fontSize: 9, color: "#475569" }}>Inflow</div>
-          <div style={{ fontSize: 11, fontWeight: 600, color: "#10b981" }}>${data.totalInflowUsd.toLocaleString()}</div>
+          <div style={{ fontSize: 9, color: "#64748b", textTransform: "uppercase", fontWeight: 600 }}>Volume Tracked</div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#10b981" }}>
+            ${data.totalInflowUsd.toLocaleString()}
+          </div>
         </div>
         <div>
-          <div style={{ fontSize: 9, color: "#475569" }}>Balance</div>
-          <div style={{ fontSize: 11, fontWeight: 600, color: palette.text }}>${data.balanceUsd.toLocaleString()}</div>
+          <div style={{ fontSize: 9, color: "#64748b", textTransform: "uppercase", fontWeight: 600 }}>Current Balance</div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: theme.text }}>
+            ${data.balanceUsd.toLocaleString()}
+          </div>
         </div>
       </div>
 
+      {/* Sweep / Micro-Gas Indicator */}
       {data.sweepDetails && (
         <div style={{
-          marginTop: 8, padding: "6px 8px", borderRadius: 6,
-          background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)",
-          fontSize: 10, color: "#fca5a5",
+          marginTop: 10, padding: "6px 8px", borderRadius: 6,
+          background: "rgba(244, 63, 94, 0.1)", border: "1px solid rgba(244, 63, 94, 0.3)",
+          fontSize: 10, color: "#fca5a5", display: "flex", alignItems: "center", gap: 5,
         }}>
-          <Zap size={10} style={{ display: "inline", marginRight: 4 }} />
-          Micro-gas refill + {data.sweepDetails.sweptPercentage}% sweep
+          <Zap size={11} color="#f43f5e" />
+          <span>Micro-gas refill + {data.sweepDetails.sweptPercentage}% sweep to {data.sweepDetails.exchangeName}</span>
         </div>
       )}
 
-      <Handle type="source" position={Position.Right} style={{ background: palette.border, width: 8, height: 8 }} />
+      <Handle type="source" position={Position.Right} style={{ background: theme.border, width: 8, height: 8 }} />
     </div>
   );
 }
 
-const nodeTypes = { forensic: ForensicNodeCard };
-
-function buildReactFlowElements(trace: GraphTraceResult) {
-  const nodes: Node[] = [];
-  const edges: Edge[] = [];
-
-  const cols = new Map<number, number>();
-
-  trace.nodes.forEach((fn) => {
-    const hop = fn.hopDistance;
-    const colCount = cols.get(hop) || 0;
-    cols.set(hop, colCount + 1);
-
-    nodes.push({
-      id: fn.id,
-      type: "forensic",
-      data: fn,
-      position: {
-        x: hop * 320,
-        y: colCount * 190,
-      },
-    });
-  });
-
-  trace.edges.forEach((fe) => {
-    edges.push({
-      id: fe.id,
-      source: fe.source,
-      target: fe.target,
-      animated: fe.isPrimaryFlow,
-      style: {
-        stroke: fe.isSweeping ? "#ef4444" : fe.isPrimaryFlow ? "#3b82f6" : "#475569",
-        strokeWidth: fe.isPrimaryFlow ? 2.5 : 1.5,
-      },
-      label: `${fe.tokenSymbol} $${fe.amount.toLocaleString()}`,
-      labelStyle: { fontSize: 10, fill: "#94a3b8", fontFamily: "monospace" },
-      labelBgStyle: { fill: "#111827", fillOpacity: 0.9 },
-    });
-  });
-
-  return { nodes, edges };
-}
+const nodeTypes = {
+  customForensicNode: ForensicNodeCard,
+};
 
 export default function TraceTab({ traceResult, isLoading, onRequestNotice }: TraceTabProps) {
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState<ForensicNode | null>(null);
-  const [rfNodes, setRfNodes, onNodesChange] = useNodesState([]);
-  const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState([]);
+  const [aiBrief, setAiBrief] = useState<string | null>(null);
+  const [isGeneratingAi, setIsGeneratingAi] = useState(false);
+  const [copiedHash, setCopiedHash] = useState(false);
 
-  // Crucial Ralph Loop Fix: Synchronize React Flow whenever traceResult updates!
+  // Synchronize React Flow nodes whenever traceResult changes
   useEffect(() => {
-    if (traceResult && traceResult.nodes && traceResult.nodes.length > 0) {
-      const { nodes, edges } = buildReactFlowElements(traceResult);
-      setRfNodes(nodes);
-      setRfEdges(edges);
+    if (!traceResult) {
+      setNodes([]);
+      setEdges([]);
       setSelectedNode(null);
+      setAiBrief(null);
+      return;
     }
-  }, [traceResult, setRfNodes, setRfEdges]);
 
-  if (isLoading) {
-    return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh", flexDirection: "column", gap: 16 }}>
-        <div style={{
-          width: 48, height: 48, borderRadius: "50%",
-          border: "3px solid #1e2d45", borderTopColor: "#3b82f6",
-          animation: "spin 0.8s linear infinite",
-        }} />
-        <div style={{ fontSize: 14, color: "#94a3b8" }}>Running live multi-chain forensic traversal...</div>
-        <div style={{ fontSize: 12, color: "#475569" }}>Querying live consensus nodes and token transfer logs</div>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      </div>
-    );
-  }
+    const startX = 60;
+    const startY = 160;
+    const hopWidth = 340;
+    const hopHeights: Record<number, number> = {};
 
-  if (!traceResult) {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "60vh", gap: 12 }}>
-        <Shield size={40} color="#1e2d45" />
-        <div style={{ fontSize: 16, fontWeight: 600, color: "#475569" }}>No active trace</div>
-        <div style={{ fontSize: 13, color: "#374151" }}>Enter a wallet address above or select an authentic benchmark case to begin</div>
-      </div>
-    );
-  }
+    const rfNodes: Node[] = traceResult.nodes.map((node) => {
+      const hop = node.hopDistance;
+      const countAtHop = hopHeights[hop] || 0;
+      hopHeights[hop] = countAtHop + 1;
+
+      const posX = startX + hop * hopWidth;
+      const posY = startY + countAtHop * 180;
+
+      return {
+        id: node.id,
+        type: "customForensicNode",
+        position: { x: posX, y: posY },
+        data: node,
+      };
+    });
+
+    const rfEdges: Edge[] = traceResult.edges.map((edge, idx) => ({
+      id: edge.id || `edge-${idx}`,
+      source: edge.source,
+      target: edge.target,
+      label: edge.amount > 0 ? `$${edge.amount.toLocaleString()} ${edge.tokenSymbol}` : edge.tokenSymbol,
+      animated: true,
+      style: {
+        stroke: edge.isSweeping ? "#10b981" : edge.isBridgeTx ? "#06b6d4" : "#38bdf8",
+        strokeWidth: 2,
+      },
+      labelStyle: { fill: "#f8fafc", fontSize: 10, fontWeight: 700 },
+      labelBgStyle: { fill: "#0f172a", fillOpacity: 0.9, stroke: "#334155", strokeWidth: 1, rx: 4 },
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        color: edge.isSweeping ? "#10b981" : edge.isBridgeTx ? "#06b6d4" : "#38bdf8",
+      },
+    }));
+
+    setNodes(rfNodes);
+    setEdges(rfEdges);
+  }, [traceResult, setNodes, setEdges]);
+
+  const handleNodeClick = (_: any, node: Node) => {
+    setSelectedNode(node.data as ForensicNode);
+  };
+
+  const handleGenerateAiBrief = async () => {
+    if (!traceResult) return;
+    setIsGeneratingAi(true);
+    try {
+      const res = await fetch("/api/ai-analysis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trace: traceResult }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAiBrief(data.analysis);
+      }
+    } catch (e) {
+      console.error("[AI Brief]", e);
+    } finally {
+      setIsGeneratingAi(false);
+    }
+  };
+
+  const handleCopyHash = () => {
+    if (!traceResult?.sha256StateHash) return;
+    navigator.clipboard.writeText(traceResult.sha256StateHash);
+    setCopiedHash(true);
+    setTimeout(() => setCopiedHash(false), 2000);
+  };
 
   return (
-    <div style={{ display: "flex", height: "calc(100vh - 148px)" }}>
-      {/* Graph canvas */}
-      <div style={{ flex: 1, position: "relative" }}>
-        <ReactFlow
-          nodes={rfNodes}
-          edges={rfEdges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          nodeTypes={nodeTypes}
-          onNodeClick={(_, node) => setSelectedNode(node.data)}
-          fitView
-          fitViewOptions={{ padding: 0.2 }}
-          minZoom={0.3}
-          maxZoom={2}
-          style={{ background: "#0a0e1a" }}
-        >
-          <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="#1e2d45" />
-          <Controls style={{ background: "#111827", border: "1px solid #1e2d45" }} />
-          <MiniMap
-            style={{ background: "#111827", border: "1px solid #1e2d45" }}
-            nodeColor={(n) => {
-              const fn: ForensicNode = n.data;
-              return NODE_COLORS[fn.entityType]?.border || "#475569";
-            }}
-          />
-        </ReactFlow>
+    <div style={{ position: "relative", height: "calc(100vh - 145px)", background: "#0a0f1d", overflow: "hidden" }}>
 
-        {/* Trace summary strip */}
+      {/* Top Forensic Telemetry Ribbon */}
+      {traceResult && (
         <div style={{
-          position: "absolute", top: 12, left: 12, right: 12,
-          background: "rgba(15,22,41,0.92)",
+          position: "absolute",
+          top: 14,
+          left: 16,
+          right: 16,
+          zIndex: 20,
+          background: "rgba(15, 23, 42, 0.92)",
           backdropFilter: "blur(12px)",
-          border: "1px solid #1e2d45",
-          borderRadius: 10,
-          padding: "10px 16px",
+          border: "1px solid #334155",
+          borderRadius: 12,
+          padding: "10px 18px",
           display: "flex",
           alignItems: "center",
-          gap: 20,
+          justifyContent: "space-between",
+          boxShadow: "0 8px 32px rgba(0, 0, 0, 0.4)",
         }}>
-          {[
-            { label: "Target Address", value: `${traceResult.rootAddress.slice(0, 8)}...${traceResult.rootAddress.slice(-6)}`, mono: true },
-            { label: "Detected Asset", value: traceResult.detectedAsset?.asset || traceResult.network },
-            { label: "Volume Tracked", value: `$${traceResult.totalVolumeTrackedUsd.toLocaleString()}` },
-            { label: "Hops", value: `${traceResult.nodes.length - 1}` },
-            { label: "Attribution", value: traceResult.destinationVasp?.name || "Independent Wallet", highlight: !!traceResult.destinationVasp },
-            { label: "Traversal Time", value: `${traceResult.traversalDurationMs}ms` },
-          ].map(m => (
-            <div key={m.label} style={{ whiteSpace: "nowrap" }}>
-              <div style={{ fontSize: 10, color: "#475569", marginBottom: 2 }}>{m.label}</div>
-              <div style={{
-                fontSize: 13, fontWeight: 600,
-                color: m.highlight ? "#34d399" : "#f1f5f9",
-                fontFamily: m.mono ? "monospace" : "inherit",
-              }}>
-                {m.value}
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <div>
+              <div style={{ fontSize: 9, color: "#94a3b8", textTransform: "uppercase", fontWeight: 700 }}>Total Volume Tracked</div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: "#10b981" }}>
+                ${(traceResult.totalVolumeTrackedUsd || 0).toLocaleString()} <span style={{ fontSize: 11, color: "#64748b" }}>(₹{((traceResult.totalVolumeTrackedUsd || 0) * 85).toLocaleString("en-IN")})</span>
               </div>
             </div>
-          ))}
 
-          {traceResult.destinationVasp && (
+            <div style={{ width: 1, height: 28, background: "#334155" }} />
+
+            <div>
+              <div style={{ fontSize: 9, color: "#94a3b8", textTransform: "uppercase", fontWeight: 700 }}>Destination VASP</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#38bdf8", display: "flex", alignItems: "center", gap: 6 }}>
+                {traceResult.destinationVasp?.name || "Unidentified Unhosted Wallet"}
+                {traceResult.destinationVasp?.fiuRegistered && (
+                  <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 4, background: "rgba(16,185,129,0.15)", color: "#34d399", border: "1px solid rgba(16,185,129,0.3)" }}>
+                    FIU-IND Verified
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div style={{ width: 1, height: 28, background: "#334155" }} />
+
+            <div>
+              <div style={{ fontSize: 9, color: "#94a3b8", textTransform: "uppercase", fontWeight: 700 }}>Traversal Latency</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#f8fafc" }}>
+                {traceResult.traversalDurationMs} ms <span style={{ fontSize: 11, color: "#64748b" }}>({traceResult.nodes.length} nodes, {traceResult.maxHops} hops)</span>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button
+              onClick={handleCopyHash}
+              style={{
+                background: "rgba(15, 23, 42, 0.8)",
+                border: "1px solid #334155",
+                borderRadius: 8,
+                padding: "6px 12px",
+                fontSize: 11,
+                color: copiedHash ? "#10b981" : "#94a3b8",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              <Copy size={12} /> {copiedHash ? "BSA State Hash Copied!" : "Section 63 BSA Hash"}
+            </button>
+
+            <button
+              onClick={handleGenerateAiBrief}
+              disabled={isGeneratingAi}
+              style={{
+                background: "linear-gradient(135deg, #a855f7 0%, #6366f1 100%)",
+                border: "none",
+                borderRadius: 8,
+                padding: "6px 14px",
+                fontSize: 11,
+                fontWeight: 700,
+                color: "white",
+                cursor: isGeneratingAi ? "not-allowed" : "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              <Sparkles size={13} /> {isGeneratingAi ? "Generating..." : "AI Intelligence Brief"}
+            </button>
+
             <button
               onClick={onRequestNotice}
               style={{
-                marginLeft: "auto",
-                background: "linear-gradient(135deg, #991b1b, #dc2626)",
+                background: "linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%)",
                 border: "none",
-                borderRadius: 7,
-                padding: "7px 14px",
-                fontSize: 12,
+                borderRadius: 8,
+                padding: "6px 14px",
+                fontSize: 11,
                 fontWeight: 700,
                 color: "white",
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
                 gap: 6,
-                whiteSpace: "nowrap",
               }}
             >
-              <AlertTriangle size={13} />
-              Issue Section 94 BNSS Notice
+              <FileText size={13} /> Issue Section 94 Notice
             </button>
-          )}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Node Inspector Drawer */}
+      {/* Loading overlay */}
+      {isLoading && (
+        <div style={{
+          position: "absolute",
+          inset: 0,
+          background: "rgba(10, 15, 29, 0.85)",
+          backdropFilter: "blur(6px)",
+          zIndex: 40,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 14,
+        }}>
+          <div style={{
+            width: 48, height: 48, borderRadius: "50%",
+            border: "3px solid #38bdf8", borderTopColor: "transparent",
+            animation: "spin 0.8s linear infinite",
+          }} />
+          <div style={{ fontSize: 16, fontWeight: 700, color: "#f8fafc" }}>
+            Executing Multi-Chain Graph Traversal...
+          </div>
+          <div style={{ fontSize: 12, color: "#94a3b8" }}>
+            Ingesting live on-chain balances, evaluating 2-step VASP sweeps, and hashing state seal.
+          </div>
+        </div>
+      )}
+
+      {/* React Flow Canvas */}
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onNodeClick={handleNodeClick}
+        nodeTypes={nodeTypes}
+        fitView
+        minZoom={0.2}
+        maxZoom={1.5}
+      >
+        <Background color="#1e293b" gap={20} size={1} variant={BackgroundVariant.Dots} />
+        <Controls style={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 8 }} />
+        <MiniMap
+          nodeColor={(n) => (NODE_THEMES[n.data?.entityType]?.border || "#475569")}
+          style={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 8 }}
+        />
+      </ReactFlow>
+
+      {/* Node Detail Drawer */}
       {selectedNode && (
         <div style={{
-          width: 340,
-          background: "#0f1629",
-          borderLeft: "1px solid #1e2d45",
+          position: "absolute",
+          top: 70,
+          right: 16,
+          width: 360,
+          maxHeight: "calc(100% - 90px)",
           overflowY: "auto",
-          padding: 20,
-          animation: "slideIn 0.2s ease",
+          background: "rgba(15, 23, 42, 0.95)",
+          backdropFilter: "blur(16px)",
+          border: "1px solid #334155",
+          borderRadius: 14,
+          padding: "20px",
+          zIndex: 30,
+          boxShadow: "0 12px 40px rgba(0, 0, 0, 0.5)",
+          display: "flex",
+          flexDirection: "column",
+          gap: 14,
         }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#f1f5f9" }}>Address Intelligence</div>
-            <button onClick={() => setSelectedNode(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#475569" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "#f8fafc" }}>
+              Node Forensic Inspection
+            </div>
+            <button
+              onClick={() => setSelectedNode(null)}
+              style={{ background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer" }}
+            >
               <X size={16} />
             </button>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div>
-              <div style={{ fontSize: 11, color: "#475569", marginBottom: 4 }}>Entity Classification</div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "#f1f5f9" }}>{selectedNode.entityType.replace(/_/g, " ")}</div>
+          <div>
+            <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", fontWeight: 700 }}>Entity Name &amp; Role</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "#38bdf8", marginTop: 2 }}>
+              {selectedNode.entityName || selectedNode.label}
             </div>
+          </div>
 
-            <div>
-              <div style={{ fontSize: 11, color: "#475569", marginBottom: 4 }}>Full Address</div>
-              <div style={{ fontFamily: "monospace", fontSize: 11, color: "#94a3b8", wordBreak: "break-all" }}>
-                {selectedNode.fullAddress}
+          <div>
+            <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", fontWeight: 700 }}>Full Wallet Address</div>
+            <div style={{
+              fontFamily: "monospace", fontSize: 11, color: "#cbd5e1",
+              background: "#0a0f1d", padding: "8px 10px", borderRadius: 6,
+              border: "1px solid #1e293b", marginTop: 4, wordBreak: "break-all",
+            }}>
+              {selectedNode.fullAddress}
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div style={{ background: "#0a0f1d", padding: "10px", borderRadius: 8, border: "1px solid #1e293b" }}>
+              <div style={{ fontSize: 9, color: "#64748b" }}>INFLOW VOLUME</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#10b981" }}>
+                ${selectedNode.totalInflowUsd.toLocaleString()}
               </div>
             </div>
-
-            {selectedNode.assetDetails && (
-              <div>
-                <div style={{ fontSize: 11, color: "#475569", marginBottom: 4 }}>Detected Cryptocurrency</div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "#38bdf8" }}>{selectedNode.assetDetails.asset}</div>
-                <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>{selectedNode.assetDetails.chainName}</div>
-                <a
-                  href={selectedNode.assetDetails.explorerUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ fontSize: 11, color: "#60a5fa", display: "inline-flex", alignItems: "center", gap: 3, marginTop: 4, textDecoration: "none" }}
-                >
-                  Open on Official Explorer <ExternalLink size={10} />
-                </a>
+            <div style={{ background: "#0a0f1d", padding: "10px", borderRadius: 8, border: "1px solid #1e293b" }}>
+              <div style={{ fontSize: 9, color: "#64748b" }}>CURRENT BALANCE</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#f8fafc" }}>
+                ${selectedNode.balanceUsd.toLocaleString()}
               </div>
+            </div>
+          </div>
+
+          {selectedNode.sweepDetails && (
+            <div style={{
+              background: "rgba(244, 63, 94, 0.08)",
+              border: "1px solid rgba(244, 63, 94, 0.3)",
+              borderRadius: 8,
+              padding: "12px",
+            }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "#f43f5e", marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
+                <Zap size={13} /> 2-Step VASP Sweeping Confirmed
+              </div>
+              <div style={{ fontSize: 11, color: "#cbd5e1", lineHeight: 1.4 }}>
+                Exchange: <strong>{selectedNode.sweepDetails.exchangeName}</strong><br />
+                Micro-Gas Refill: <strong>{selectedNode.sweepDetails.gasAmount || "15 TRX"}</strong><br />
+                Swept Ratio: <strong>{selectedNode.sweepDetails.sweptPercentage}%</strong><br />
+                Master Vault: <span style={{ fontFamily: "monospace", fontSize: 10 }}>{selectedNode.sweepDetails.destinationVault.slice(0, 12)}...</span>
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 6 }}>
+            {selectedNode.assetDetails?.explorerUrl && (
+              <a
+                href={selectedNode.assetDetails.explorerUrl}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  background: "#0a0f1d",
+                  border: "1px solid #334155",
+                  borderRadius: 8,
+                  padding: "8px 12px",
+                  fontSize: 11,
+                  color: "#38bdf8",
+                  textDecoration: "none",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                }}
+              >
+                View on Blockchain Explorer <ExternalLink size={12} />
+              </a>
             )}
 
-            {selectedNode.entityName && (
-              <div>
-                <div style={{ fontSize: 11, color: "#475569", marginBottom: 4 }}>Identified Entity</div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#10b981" }}>{selectedNode.entityName}</div>
-                {selectedNode.fiuRegistered && (
-                  <div style={{ fontSize: 11, color: "#34d399", marginTop: 2 }}>FIU-IND Registered Exchange</div>
-                )}
-              </div>
-            )}
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, borderTop: "1px solid #1e2d45", paddingTop: 14 }}>
-              {[
-                { label: "Total Inflow", value: `$${selectedNode.totalInflowUsd.toLocaleString()}`, color: "#10b981" },
-                { label: "Total Outflow", value: `$${selectedNode.totalOutflowUsd.toLocaleString()}`, color: "#ef4444" },
-                { label: "Remaining Balance", value: `$${selectedNode.balanceUsd.toLocaleString()}`, color: "#f59e0b" },
-                { label: "Hop Distance", value: `${selectedNode.hopDistance} hops`, color: "#94a3b8" },
-              ].map(m => (
-                <div key={m.label}>
-                  <div style={{ fontSize: 10, color: "#475569", marginBottom: 4 }}>{m.label}</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: m.color }}>{m.value}</div>
-                </div>
-              ))}
-            </div>
-
-            {selectedNode.sweepDetails && (
-              <div style={{
-                background: "rgba(239,68,68,0.06)",
-                border: "1px solid rgba(239,68,68,0.2)",
+            <button
+              onClick={onRequestNotice}
+              style={{
+                background: "linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%)",
+                border: "none",
                 borderRadius: 8,
-                padding: 14,
-              }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "#fca5a5", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
-                  <AlertTriangle size={13} />
-                  VASP Sweeping Signature Confirmed
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  <div style={{ fontSize: 11, color: "#94a3b8" }}>
-                    <strong style={{ color: "#f1f5f9" }}>Exchange:</strong> {selectedNode.sweepDetails.exchangeName}
-                  </div>
-                  <div style={{ fontSize: 11, color: "#94a3b8" }}>
-                    <strong style={{ color: "#f1f5f9" }}>Gas Refill:</strong> {selectedNode.sweepDetails.gasAmount}
-                  </div>
-                  <div style={{ fontSize: 11, color: "#94a3b8" }}>
-                    <strong style={{ color: "#f1f5f9" }}>Swept:</strong> {selectedNode.sweepDetails.sweptPercentage}% of total balance
-                  </div>
-                </div>
+                padding: "8px 14px",
+                fontSize: 12,
+                fontWeight: 700,
+                color: "white",
+                cursor: "pointer",
+              }}
+            >
+              Issue Section 94 Notice for this Entity
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* AI Intelligence Brief Drawer */}
+      {aiBrief && (
+        <div style={{
+          position: "absolute",
+          bottom: 16,
+          left: 16,
+          width: 480,
+          maxHeight: 280,
+          overflowY: "auto",
+          background: "rgba(15, 23, 42, 0.95)",
+          backdropFilter: "blur(16px)",
+          border: "1px solid #a855f7",
+          borderRadius: 12,
+          padding: "16px 20px",
+          zIndex: 30,
+          boxShadow: "0 12px 32px rgba(168, 85, 247, 0.25)",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Sparkles size={16} color="#a855f7" />
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#f8fafc" }}>
+                I4C Senior Forensic Intelligence Narrative
               </div>
-            )}
+            </div>
+            <button
+              onClick={() => setAiBrief(null)}
+              style={{ background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer" }}
+            >
+              <X size={14} />
+            </button>
+          </div>
+          <div style={{ fontSize: 12, color: "#cbd5e1", lineHeight: 1.6, whiteSpace: "pre-line" }}>
+            {aiBrief}
           </div>
         </div>
       )}
