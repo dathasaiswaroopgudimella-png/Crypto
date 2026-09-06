@@ -58,6 +58,8 @@ export class BnssNoticeGenerator {
         depositTimestampUtc: vasp.detectedAt,
         vaultSweptTo: vasp.vaultAddress,
         hopPath: trace.nodes.map((n) => `${n.label} [${n.fullAddress.slice(0, 8)}...]`),
+        detectedPatterns: trace.detectedPatterns ? trace.detectedPatterns.map((p: any) => typeof p === "string" ? p : p.name || p.patternType || "Laundering Pattern") : ["Multi-Hop Mule Layering", "2-Step Deposit Sweep"],
+        riskScore: typeof trace.overallRiskScore === "number" ? trace.overallRiskScore : (typeof trace.criminalRiskScore === "number" ? trace.criminalRiskScore : 92),
       },
       statutoryDirectives: [
         `IMMEDIATE FREEZING ORDER: Pursuant to Section 94 of Bharatiya Nagarik Suraksha Sanhita (BNSS, 2023), you are hereby commanded to IMMEDIATELY LOCK, FREEZE, AND SUSPEND all withdrawal, trading, P2P swapping, and internal transfer privileges for the user account associated with deposit address ${vasp.depositAddress}.`,

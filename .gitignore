@@ -19,10 +19,14 @@
 
 # Local env files - MANDATORY SECURITY
 .env
+.env*
+.env.explabs
 .env*.local
 .env.development.local
 .env.test.local
 .env.production.local
+*.key
+explabs_key.txt
 
 # Vercel
 .vercel

@@ -29,8 +29,58 @@ Case Data:
 
 Write three concise paragraphs covering: what happened to the victim's money, how the syndicate laundered it, and what the police officer must do right now under Section 94 BNSS.`;
 
-    const openRouterKey = process.env.OPENROUTER_API_KEY;
+    // 1. PRIMARY INTELLIGENCE: Experiential Labs Gateway (gpt-6-astra)
+    const explabsKey = process.env.EXPLABS_API_KEY;
+    if (explabsKey && !explabsKey.includes("YOUR_") && !explabsKey.includes("your_")) {
+      try {
+        const { createExperientialChatCompletion } = await import("@/lib/experiential-client");
+        
+        try {
+          // Attempt exact requested target: gpt-6-astra
+          const expRes = (await createExperientialChatCompletion({
+            model: "gpt-6-astra",
+            messages: [{ role: "user", content: prompt }],
+            max_tokens: 600,
+          })) as any;
 
+          if (expRes?.reply) {
+            return NextResponse.json({
+              success: true,
+              source: "Experiential Labs (gpt-6-astra)",
+              analysis: expRes.reply,
+              usage: expRes.usage,
+            });
+          }
+        } catch (astraErr: any) {
+          console.warn("[ai-analysis] gpt-6-astra route note:", astraErr.message);
+
+          // Parallel Experiential Model: claude-fable-latest (on same gateway & key)
+          try {
+            const fableRes = (await createExperientialChatCompletion({
+              model: "claude-fable-latest",
+              messages: [{ role: "user", content: prompt }],
+              max_tokens: 600,
+            })) as any;
+
+            if (fableRes?.reply) {
+              return NextResponse.json({
+                success: true,
+                source: "Experiential Labs (claude-fable-latest)",
+                analysis: fableRes.reply,
+                usage: fableRes.usage,
+              });
+            }
+          } catch (fableErr: any) {
+            console.warn("[ai-analysis] Experiential fallback note:", fableErr.message);
+          }
+        }
+      } catch (clientErr) {
+        console.warn("[ai-analysis] Experiential client error:", clientErr);
+      }
+    }
+
+    // 2. SECONDARY INTELLIGENCE: OpenRouter Gateway
+    const openRouterKey = process.env.OPENROUTER_API_KEY;
     if (openRouterKey && !openRouterKey.includes("YOUR_") && !openRouterKey.includes("your_")) {
       try {
         const aiRes = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -54,7 +104,7 @@ Write three concise paragraphs covering: what happened to the victim's money, ho
           const json = await aiRes.json();
           const text = json.choices?.[0]?.message?.content;
           if (text) {
-            return NextResponse.json({ success: true, source: "AI", analysis: text });
+            return NextResponse.json({ success: true, source: "OpenRouter AI", analysis: text });
           }
         }
       } catch (e) {
