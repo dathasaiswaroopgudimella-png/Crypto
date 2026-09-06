@@ -41,6 +41,7 @@ Write three concise paragraphs covering: what happened to the victim's money, ho
             model: "gpt-6-astra",
             messages: [{ role: "user", content: prompt }],
             max_tokens: 600,
+            timeoutMs: 4000,
           })) as any;
 
           if (expRes?.reply) {
@@ -60,6 +61,7 @@ Write three concise paragraphs covering: what happened to the victim's money, ho
               model: "claude-fable-latest",
               messages: [{ role: "user", content: prompt }],
               max_tokens: 600,
+              timeoutMs: 4500,
             })) as any;
 
             if (fableRes?.reply) {
@@ -97,7 +99,7 @@ Write three concise paragraphs covering: what happened to the victim's money, ho
             temperature: 0.15,
             max_tokens: 600,
           }),
-          signal: AbortSignal.timeout(8000),
+          signal: AbortSignal.timeout(4000),
         });
 
         if (aiRes.ok) {

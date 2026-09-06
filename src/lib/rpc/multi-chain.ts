@@ -101,7 +101,10 @@ export class MultiChainForensicRouter {
 
     try {
       const url = `https://blockchain.info/rawaddr/${address}?limit=25`;
-      const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+      const res = await fetch(url, {
+        headers: { "User-Agent": "Mozilla/5.0" },
+        signal: AbortSignal.timeout(3500),
+      });
       if (res.ok) {
         const data = await res.json();
         txCount = data.n_tx || 0;
@@ -198,7 +201,10 @@ export class MultiChainForensicRouter {
     try {
       // 1. ERC-20 token transfers
       const tokenUrl = `https://${host}/api/v2/addresses/${clean}/token-transfers`;
-      const res = await fetch(tokenUrl, { headers: { "User-Agent": "Mozilla/5.0" } });
+      const res = await fetch(tokenUrl, {
+        headers: { "User-Agent": "Mozilla/5.0" },
+        signal: AbortSignal.timeout(3500),
+      });
       if (res.ok) {
         const json = await res.json();
         for (const item of json.items || []) {
@@ -234,7 +240,7 @@ export class MultiChainForensicRouter {
             valUsd = Math.round(tokenUnits * 100) / 100;
           }
 
-          if (valUsd <= 0) continue;
+          if (valUsd < 5) continue;
 
           if (fromAddr === clean) {
             totalOutflow += valUsd;
@@ -267,7 +273,10 @@ export class MultiChainForensicRouter {
       // 2. Native ETH transactions if token transfers are empty
       if (outgoing.length === 0 && incoming.length === 0) {
         const txUrl = `https://${host}/api/v2/addresses/${clean}/transactions`;
-        const txRes = await fetch(txUrl, { headers: { "User-Agent": "Mozilla/5.0" } });
+        const txRes = await fetch(txUrl, {
+          headers: { "User-Agent": "Mozilla/5.0" },
+          signal: AbortSignal.timeout(3500),
+        });
         if (txRes.ok) {
           const txJson = await txRes.json();
           const ethPrice = 2700;
@@ -280,7 +289,7 @@ export class MultiChainForensicRouter {
             const blockNumber = Number(item.block_number || 0);
             const txHash = item.hash || "0x...";
 
-            if (valUsd <= 0) continue;
+            if (valUsd < 5) continue;
 
             if (fromAddr === clean && toAddr) {
               totalOutflow += valUsd;
@@ -313,7 +322,10 @@ export class MultiChainForensicRouter {
 
       // 3. Address balance
       const accUrl = `https://${host}/api/v2/addresses/${clean}`;
-      const accRes = await fetch(accUrl, { headers: { "User-Agent": "Mozilla/5.0" } });
+      const accRes = await fetch(accUrl, {
+        headers: { "User-Agent": "Mozilla/5.0" },
+        signal: AbortSignal.timeout(3000),
+      });
       if (accRes.ok) {
         const accJson = await accRes.json();
         const ethBal = Number(BigInt(accJson.coin_balance || "0")) / 1e18;
@@ -322,6 +334,9 @@ export class MultiChainForensicRouter {
     } catch (err) {
       console.warn("[EVM Live Query]", err);
     }
+
+    // Sort outgoing by amount descending to focus on highest fund flows
+    outgoing.sort((a, b) => b.amount - a.amount);
 
     const result: AccountStateResult = {
       address: clean,
@@ -332,8 +347,8 @@ export class MultiChainForensicRouter {
       totalReceived: Math.round(totalInflow * 100) / 100,
       totalSent: Math.round(totalOutflow * 100) / 100,
       txCount: outgoing.length + incoming.length,
-      outgoingTransfers: outgoing,
-      incomingTransfers: incoming,
+      outgoingTransfers: outgoing.slice(0, 6),
+      incomingTransfers: incoming.slice(0, 6),
     };
 
     globalTxCache.set(cacheKey, result);
@@ -356,7 +371,10 @@ export class MultiChainForensicRouter {
 
     try {
       const url = `https://apilist.tronscan.org/api/token_trc20/transfers?limit=25&start=0&relatedAddress=${address}`;
-      const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" } });
+      const res = await fetch(url, {
+        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
+        signal: AbortSignal.timeout(3500),
+      });
       if (res.ok) {
         const json = await res.json();
         for (const t of json.token_transfers || []) {
@@ -404,6 +422,9 @@ export class MultiChainForensicRouter {
       console.warn("[TRON Live Query]", err);
     }
 
+    // Sort outgoing by amount descending to focus on highest fund flows
+    outgoing.sort((a, b) => b.amount - a.amount);
+
     const result: AccountStateResult = {
       address,
       network: "TRON",
@@ -413,8 +434,8 @@ export class MultiChainForensicRouter {
       totalReceived: Math.round(totalInflow * 100) / 100,
       totalSent: Math.round(totalOutflow * 100) / 100,
       txCount: outgoing.length + incoming.length,
-      outgoingTransfers: outgoing,
-      incomingTransfers: incoming,
+      outgoingTransfers: outgoing.slice(0, 6),
+      incomingTransfers: incoming.slice(0, 6),
     };
 
     globalTxCache.set(cacheKey, result);
