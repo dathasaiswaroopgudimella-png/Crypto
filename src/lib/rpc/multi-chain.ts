@@ -16,7 +16,7 @@ export interface AccountStateResult {
 
 export function detectCryptoAsset(address: string): AssetDetectionResult {
   const clean = address.trim();
-  if (clean.startsWith("0x") && clean.length === 42) {
+  if (clean.startsWith("0x") && clean.length >= 40 && clean.length <= 44) {
     return {
       network: "ETH",
       chainName: "Ethereum & EVM Compatible",
