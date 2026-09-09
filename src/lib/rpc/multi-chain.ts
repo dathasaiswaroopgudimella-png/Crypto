@@ -156,6 +156,7 @@ export const globalCircuitBreaker = new EndpointCircuitBreaker(5000);
 
 // Pre-register multi-chain endpoint pools for blackout prevention
 globalCircuitBreaker.registerPool([
+  "https://api.routescan.io",
   "https://eth.blockscout.com",
   "https://ethereum-rpc.publicnode.com",
   "https://eth.llamarpc.com",
@@ -639,11 +640,66 @@ export class MultiChainForensicRouter {
     let totalOutflow = 0;
     let blockscoutSuccess = false;
 
-    // --- Tier 1: Blockscout Etherscan-compatible ERC-20 token transfers ---
-    const tokenUrl = `https://${host}/api?module=account&action=tokentx&address=${clean}&page=1&offset=25`;
-    const tokenRes = await safeFetchJson<any>(tokenUrl, {}, 3500);
+    // --- Tier 1: Multi-chain EVM token transfers & native transactions in parallel ---
+    let tokenRes: any = null;
+    let txRes: any = null;
+    let balRes: any = null;
 
-    if (tokenRes.ok && Array.isArray(tokenRes.data?.result)) {
+    if (network === "ETH") {
+      // Primary for Ethereum: RouteScan high-performance EVM mirror (no rate limits, sort=desc for recent blocks)
+      const rsTokenUrl = `https://api.routescan.io/v2/network/mainnet/evm/1/etherscan/api?module=account&action=tokentx&address=${clean}&page=1&offset=25&sort=desc`;
+      const rsTxUrl = `https://api.routescan.io/v2/network/mainnet/evm/1/etherscan/api?module=account&action=txlist&address=${clean}&page=1&offset=25&sort=desc`;
+      const rsBalUrl = `https://api.routescan.io/v2/network/mainnet/evm/1/etherscan/api?module=account&action=balance&address=${clean}`;
+
+      const [rToken, rTx, rBal] = await Promise.all([
+        safeFetchJson<any>(rsTokenUrl, {}, 3500),
+        safeFetchJson<any>(rsTxUrl, {}, 3500),
+        safeFetchJson<any>(rsBalUrl, {}, 3000),
+      ]);
+
+      tokenRes = rToken;
+      txRes = rTx;
+      balRes = rBal;
+
+      // Fallback to Blockscout if RouteScan returned non-ok or empty results
+      if (!tokenRes?.ok || !Array.isArray(tokenRes?.data?.result)) {
+        const bsTokenUrl = `https://eth.blockscout.com/api?module=account&action=tokentx&address=${clean}&page=1&offset=25&sort=desc`;
+        const bsRes = await safeFetchJson<any>(bsTokenUrl, {}, 3000);
+        if (bsRes.ok && Array.isArray(bsRes.data?.result)) {
+          tokenRes = bsRes;
+        }
+      }
+      if (!txRes?.ok || !Array.isArray(txRes?.data?.result)) {
+        const bsTxUrl = `https://eth.blockscout.com/api?module=account&action=txlist&address=${clean}&page=1&offset=25&sort=desc`;
+        const bsRes = await safeFetchJson<any>(bsTxUrl, {}, 3000);
+        if (bsRes.ok && Array.isArray(bsRes.data?.result)) {
+          txRes = bsRes;
+        }
+      }
+      if (!balRes?.ok || !balRes?.data?.result) {
+        const bsBalUrl = `https://eth.blockscout.com/api?module=account&action=balance&address=${clean}`;
+        const bsRes = await safeFetchJson<any>(bsBalUrl, {}, 2500);
+        if (bsRes.ok && bsRes.data?.result) {
+          balRes = bsRes;
+        }
+      }
+    } else {
+      // Non-ETH EVM networks (Polygon, Base, Arbitrum, BSC) via Blockscout with sort=desc
+      const tokenUrl = `https://${host}/api?module=account&action=tokentx&address=${clean}&page=1&offset=25&sort=desc`;
+      const txUrl = `https://${host}/api?module=account&action=txlist&address=${clean}&page=1&offset=25&sort=desc`;
+      const balUrl = `https://${host}/api?module=account&action=balance&address=${clean}`;
+
+      const [rToken, rTx, rBal] = await Promise.all([
+        safeFetchJson<any>(tokenUrl, {}, 3500),
+        safeFetchJson<any>(txUrl, {}, 3500),
+        safeFetchJson<any>(balUrl, {}, 3000),
+      ]);
+      tokenRes = rToken;
+      txRes = rTx;
+      balRes = rBal;
+    }
+
+    if (tokenRes?.ok && Array.isArray(tokenRes?.data?.result)) {
       blockscoutSuccess = true;
       for (const item of tokenRes.data.result) {
         const fromAddr = (item.from || "").toLowerCase();
@@ -662,18 +718,25 @@ export class MultiChainForensicRouter {
         const txHash = item.hash || "0x...";
 
         let rate = 1.0;
-        if (["USDT", "USDC", "DAI", "BUSD", "FDUSD", "TUSD"].includes(symbol)) {
+        const isStable = ["USDT", "USDC", "DAI", "BUSD", "FDUSD", "TUSD", "PYUSD", "USDE"].includes(symbol);
+        const isEthAsset = ["WETH", "ETH", "STETH", "RETH"].includes(symbol);
+        const isBtcAsset = ["WBTC", "BTCB"].includes(symbol);
+
+        if (isStable) {
           rate = 1.0;
-        } else if (["WETH", "ETH", "STETH"].includes(symbol)) {
+        } else if (isEthAsset) {
           rate = 2700.0;
-        } else if (["WBTC", "BTCB"].includes(symbol)) {
+        } else if (isBtcAsset) {
           rate = 88000.0;
+        } else {
+          // Unverified or meme tokens capped at nominal rate so they do not artificially distort volume
+          rate = 0.05;
         }
 
         const valUsd = Math.round(tokenUnits * rate * 100) / 100;
         if (valUsd < 1) continue;
 
-        if (fromAddr === clean) {
+        if (fromAddr === clean && toAddr && toAddr !== clean) {
           totalOutflow += valUsd;
           outgoing.push({
             txHash,
@@ -685,7 +748,7 @@ export class MultiChainForensicRouter {
             blockNumber,
             network,
           });
-        } else if (toAddr === clean) {
+        } else if (toAddr === clean && fromAddr && fromAddr !== clean) {
           totalInflow += valUsd;
           incoming.push({
             txHash,
@@ -701,10 +764,8 @@ export class MultiChainForensicRouter {
       }
     }
 
-    // Native ETH transactions via Blockscout Etherscan-compatible txlist
-    const txUrl = `https://${host}/api?module=account&action=txlist&address=${clean}&page=1&offset=25`;
-    const txRes = await safeFetchJson<any>(txUrl, {}, 3500);
-    if (txRes.ok && Array.isArray(txRes.data?.result)) {
+    // Native ETH transactions via txlist
+    if (txRes?.ok && Array.isArray(txRes?.data?.result)) {
       blockscoutSuccess = true;
       const ethPrice = 2700;
       for (const item of txRes.data.result) {
@@ -723,7 +784,7 @@ export class MultiChainForensicRouter {
 
         if (valUsd < 5) continue;
 
-        if (fromAddr === clean && toAddr) {
+        if (fromAddr === clean && toAddr && toAddr !== clean) {
           totalOutflow += valUsd;
           outgoing.push({
             txHash,
@@ -735,7 +796,7 @@ export class MultiChainForensicRouter {
             blockNumber,
             network,
           });
-        } else if (toAddr === clean && fromAddr) {
+        } else if (toAddr === clean && fromAddr && fromAddr !== clean) {
           totalInflow += valUsd;
           incoming.push({
             txHash,
@@ -751,10 +812,8 @@ export class MultiChainForensicRouter {
       }
     }
 
-    // Address balance via Blockscout Etherscan-compatible balance action
-    const balUrl = `https://${host}/api?module=account&action=balance&address=${clean}`;
-    const balRes = await safeFetchJson<any>(balUrl, {}, 3000);
-    if (balRes.ok && balRes.data?.result) {
+    // Address balance via balance action
+    if (balRes?.ok && balRes?.data?.result) {
       let ethBal = 0;
       try {
         ethBal = Number(BigInt(balRes.data.result || "0")) / 1e18;

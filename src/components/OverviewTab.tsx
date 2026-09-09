@@ -308,7 +308,7 @@ const WORKFLOW_STEPS = [
 ];
 
 export default function OverviewTab({ traceResult, onLoadCase, onNavigateTrace }: OverviewTabProps) {
-  const [selectedCaseFilter, setSelectedCaseFilter] = useState<"ALL" | "TRON" | "ETH" | "CROSS">("ALL");
+  const [selectedCaseFilter, setSelectedCaseFilter] = useState<"ALL" | "TRON" | "ETH" | "BTC" | "CROSS">("ALL");
   const [activeTriageMode, setActiveTriageMode] = useState<"comparison" | "timeline">("comparison");
   const [activeStageIndex, setActiveStageIndex] = useState<number>(3); // Default to 18-minute critical point
   const [activeWorkflowStep, setActiveWorkflowStep] = useState<number>(0);
@@ -322,8 +322,9 @@ export default function OverviewTab({ traceResult, onLoadCase, onNavigateTrace }
 
   const filteredCases = useMemo(() => {
     if (selectedCaseFilter === "ALL") return AUTHENTIC_FORENSIC_CASES;
-    if (selectedCaseFilter === "TRON") return AUTHENTIC_FORENSIC_CASES.filter(c => c.network === "TRON" && !c.incidentType.toLowerCase().includes("cross-chain"));
-    if (selectedCaseFilter === "ETH") return AUTHENTIC_FORENSIC_CASES.filter(c => c.network === "ETH" && !c.incidentType.toLowerCase().includes("cross-chain"));
+    if (selectedCaseFilter === "TRON") return AUTHENTIC_FORENSIC_CASES.filter(c => c.network === "TRON");
+    if (selectedCaseFilter === "ETH") return AUTHENTIC_FORENSIC_CASES.filter(c => c.network === "ETH");
+    if (selectedCaseFilter === "BTC") return AUTHENTIC_FORENSIC_CASES.filter(c => c.network === "BTC");
     if (selectedCaseFilter === "CROSS") return AUTHENTIC_FORENSIC_CASES.filter(c => c.incidentType.toLowerCase().includes("cross-chain") || c.caseSummary.toLowerCase().includes("bridge"));
     return AUTHENTIC_FORENSIC_CASES;
   }, [selectedCaseFilter]);
@@ -1247,10 +1248,11 @@ export default function OverviewTab({ traceResult, onLoadCase, onNavigateTrace }
           {/* Network Filter Pills */}
           <div style={{ display: "flex", alignItems: "center", gap: 6, background: "#0b1226", border: "1px solid #1a2742", borderRadius: 8, padding: 3 }}>
             {[
-              { id: "ALL", label: "All Cases (3)" },
-              { id: "TRON", label: "TRON Network (1)" },
-              { id: "ETH", label: "Ethereum Network (1)" },
-              { id: "CROSS", label: "Cross-Chain Bridge (1)" },
+              { id: "ALL", label: `All Cases (${AUTHENTIC_FORENSIC_CASES.length})` },
+              { id: "ETH", label: `Ethereum (${AUTHENTIC_FORENSIC_CASES.filter(c => c.network === "ETH").length})` },
+              { id: "TRON", label: `TRON (${AUTHENTIC_FORENSIC_CASES.filter(c => c.network === "TRON").length})` },
+              { id: "BTC", label: `Bitcoin (${AUTHENTIC_FORENSIC_CASES.filter(c => c.network === "BTC").length})` },
+              { id: "CROSS", label: `Cross-Chain (${AUTHENTIC_FORENSIC_CASES.filter(c => c.incidentType.toLowerCase().includes("cross-chain") || c.caseSummary.toLowerCase().includes("bridge")).length})` },
             ].map(f => (
               <button
                 key={f.id}

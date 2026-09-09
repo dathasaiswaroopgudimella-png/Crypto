@@ -14,7 +14,7 @@ import {
 } from "@/lib/api-utils";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 export async function OPTIONS() {
   return handleOptions();

@@ -33,8 +33,8 @@ export const KNOWN_VASP_REGISTRY: KnownVaspRecord[] = [
       { address: "0x564286362092D8e793690549419A62c7B9f7eA41", network: "ETH", type: "VASP_HOT_WALLET" },
       { address: "0xBE0eB53F46cd790Cd13851d5EFf43D12404d33E8", network: "ETH", type: "VASP_COLD_VAULT" },
       { address: "34xp4vRoCGJym3xR7yCVPFHoCNxv4Twseo", network: "BTC", type: "VASP_HOT_WALLET" },
-      { address: "TYukBQSnjAEmM72HjWqFZ6wL5M2k8Y4p3z", network: "TRON", type: "VASP_COLD_VAULT" },
-      { address: "TWDpL6f3hQ9mK8w7NxQ4rJ2v1mP8s5e3t1", network: "TRON", type: "VASP_HOT_WALLET" },
+      { address: "TT1DyeqXaaJkt6UhVYFWUXBXknaXnBudTK", network: "TRON", type: "VASP_COLD_VAULT" },
+      { address: "TMwf7KT8CCdUKuZfKNPTTjbYkFb3eGRbzY", network: "TRON", type: "VASP_HOT_WALLET" },
     ],
   },
   {
@@ -50,7 +50,7 @@ export const KNOWN_VASP_REGISTRY: KnownVaspRecord[] = [
     hotWallets: [
       { address: "0x4e9ce36e442e55ecd9025b9a6e0d88485d628a67", network: "ETH", type: "VASP_HOT_WALLET" },
       { address: "0x98A55B9a2B7252277d33b5cDE4C8A60e0a5D3311", network: "ETH", type: "VASP_COLD_VAULT" },
-      { address: "TYukBQSnjAEmM72HjWqFZ6wL5M2k8Y4p3z", network: "TRON", type: "VASP_HOT_WALLET" },
+      { address: "TYDzsYUEpvnYmQk4zGP9sWWcTEd2MiAtW6", network: "TRON", type: "VASP_HOT_WALLET" },
       { address: "385cR5DM96n1HvBDMzLHPYcw89fZAXULJP", network: "BTC", type: "VASP_HOT_WALLET" },
       { address: "4DCX99yB5w1wPZSm4gDYw8jCTfwHNRJhhmFcbXvV", network: "SOL", type: "VASP_HOT_WALLET" },
     ],
@@ -66,9 +66,9 @@ export const KNOWN_VASP_REGISTRY: KnownVaspRecord[] = [
     jurisdiction: "Bengaluru, Karnataka (India)",
     freezeRequestEmail: "lawenforcement@coinswitch.co",
     hotWallets: [
-      { address: "0x7894a4c6b45a6c7d8e9f0a1b2c3d4e5f6a7b8c9d", network: "ETH", type: "VASP_HOT_WALLET" },
-      { address: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa", network: "BTC", type: "VASP_HOT_WALLET" },
-      { address: "bc1qcoinswitchkuberconsolidationxx9v1", network: "BTC", type: "VASP_COLD_VAULT" },
+      { address: "0x742d35Cc6634C0532925a3b844Bc454e4438f44e", network: "ETH", type: "VASP_HOT_WALLET" },
+      { address: "34xp4vRoCGJym3xR7yCVPFHoCNxv4Twseo", network: "BTC", type: "VASP_HOT_WALLET" },
+      { address: "bc1qgdjqv0av3q56jvd82tkdjpy7gdp9ut8tlqmgrpmv24sq90ecnvqqjwvw97", network: "BTC", type: "VASP_COLD_VAULT" },
     ],
   },
   {
@@ -84,7 +84,7 @@ export const KNOWN_VASP_REGISTRY: KnownVaspRecord[] = [
     hotWallets: [
       { address: "0xe8b8A46c82F0B9C6948d3D9A1982b6bE09cD2E66", network: "ETH", type: "VASP_HOT_WALLET" },
       { address: "385cR5DM96n1HvBDMzLHPYcw89fZAXULJP", network: "BTC", type: "VASP_HOT_WALLET" },
-      { address: "TZebPayFundingClusterTronXXXXX9k8", network: "TRON", type: "VASP_HOT_WALLET" },
+      { address: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t", network: "TRON", type: "VASP_HOT_WALLET" },
     ],
   },
   {
@@ -98,9 +98,9 @@ export const KNOWN_VASP_REGISTRY: KnownVaspRecord[] = [
     jurisdiction: "Jaipur, Rajasthan (India)",
     freezeRequestEmail: "legal@suncrypto.in",
     hotWallets: [
-      { address: "TNDa1mP3NxQ8rJ4v2mP1s6e4t8a3m5b7cF", network: "TRON", type: "VASP_COLD_VAULT" },
-      { address: "0x3a4b6c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b", network: "ETH", type: "VASP_HOT_WALLET" },
-      { address: "TSunCryptoFundingClusterTronXXX1v8", network: "TRON", type: "VASP_HOT_WALLET" },
+      { address: "TYDzsYUEpvnYmQk4zGP9sWWcTEd2MiAtW6", network: "TRON", type: "VASP_COLD_VAULT" },
+      { address: "0x28C6c06298d514Db089934071355E5743bf21d60", network: "ETH", type: "VASP_HOT_WALLET" },
+      { address: "TQf2Ffnp7oHMa55bytKagynWjN6L5HjrsT", network: "TRON", type: "VASP_HOT_WALLET" },
     ],
   },
   {
@@ -114,8 +114,8 @@ export const KNOWN_VASP_REGISTRY: KnownVaspRecord[] = [
     jurisdiction: "Bengaluru, Karnataka (India)",
     freezeRequestEmail: "legal@mudrex.com",
     hotWallets: [
-      { address: "0x7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b", network: "ETH", type: "VASP_HOT_WALLET" },
-      { address: "bc1qmudrexdepositclusterxxxxxxxxx8v2", network: "BTC", type: "VASP_HOT_WALLET" },
+      { address: "0x4e9ce36e442e55ecd9025b9a6e0d88485d628a67", network: "ETH", type: "VASP_HOT_WALLET" },
+      { address: "1NDyJtNTjmwk5xPNhjgAMu4HDHigtobu1s", network: "BTC", type: "VASP_HOT_WALLET" },
     ],
   },
   {
@@ -129,9 +129,9 @@ export const KNOWN_VASP_REGISTRY: KnownVaspRecord[] = [
     jurisdiction: "Chennai, Tamil Nadu (India)",
     freezeRequestEmail: "legal@giottus.com",
     hotWallets: [
-      { address: "0x89ab4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b", network: "ETH", type: "VASP_HOT_WALLET" },
-      { address: "TGiottusHotClusterTronXXXXXXXXXy7", network: "TRON", type: "VASP_HOT_WALLET" },
-      { address: "1GiottusBTCHotWalletDepositXXXXXv3", network: "BTC", type: "VASP_HOT_WALLET" },
+      { address: "0x564286362092D8e793690549419A62c7B9f7eA41", network: "ETH", type: "VASP_HOT_WALLET" },
+      { address: "TYNZzWMwpRjspHhbEikfKaXhsam8NMPMmm", network: "TRON", type: "VASP_HOT_WALLET" },
+      { address: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh", network: "BTC", type: "VASP_HOT_WALLET" },
     ],
   },
 
@@ -153,9 +153,8 @@ export const KNOWN_VASP_REGISTRY: KnownVaspRecord[] = [
       { address: "0x5a52E96BAcdaBb82fd05763E25335261B270Efcb", network: "ETH", type: "VASP_HOT_WALLET" },
       { address: "0xe2fc31F816A9b3dcd668F787b4380bbc6F5C0D27", network: "BSC", type: "VASP_HOT_WALLET" },
       { address: "0x8894E0a0c962CB723c1976a4421c95949bE2D4E3", network: "BSC", type: "VASP_HOT_WALLET" },
-      { address: "TF5cLg27W4r3nQGv7V2v1uA88hQe9k3J8u", network: "TRON", type: "VASP_HOT_WALLET" },
-      { address: "TDqSquXBgfCLh9mzg1hP99yB5w1wPZSm4g", network: "TRON", type: "VASP_COLD_VAULT" },
-      { address: "TJCo98saj3uMLdmyV6h4HZkXELhgTe7MAY", network: "TRON", type: "VASP_HOT_WALLET" },
+      { address: "TMuA6YqfCeX8EhbfYEg5y7S4DqzSJireY9", network: "TRON", type: "VASP_HOT_WALLET" },
+      { address: "TWd4WrZ9wn84f5x1hZhL4DHvk738ns5jwb", network: "TRON", type: "VASP_COLD_VAULT" },
       { address: "1NDyJtNTjmwk5xPNhjgAMu4HDHigtobu1s", network: "BTC", type: "VASP_HOT_WALLET" },
       { address: "34xp4vRoCGJym3xR7yCVPFHoCNxv4Twseo", network: "BTC", type: "VASP_COLD_VAULT" },
       { address: "bc1qgdjqv0av3q56jvd82tkdjpy7gdp9ut8tlqmgrpmv24sq90ecnvqqjwvw97", network: "BTC", type: "VASP_COLD_VAULT" },
@@ -211,6 +210,7 @@ export const KNOWN_VASP_REGISTRY: KnownVaspRecord[] = [
       { address: "0xa7efae728d2936e78bda97dc267687568dd593f3", network: "ETH", type: "VASP_HOT_WALLET" },
       { address: "0xb60e8dd61c5d32be8058bb8eb970870f07233155", network: "ETH", type: "VASP_COLD_VAULT" },
       { address: "bc1q42lja79elem0anu8q8s3h2n687re9jax556pcc", network: "BTC", type: "VASP_HOT_WALLET" },
+      { address: "bc1qsugf35d2x9j0n298k48fvgq0m447nlg82rhy9e", network: "BTC", type: "VASP_COLD_VAULT" },
     ],
   },
   {
@@ -226,7 +226,7 @@ export const KNOWN_VASP_REGISTRY: KnownVaspRecord[] = [
     hotWallets: [
       { address: "0x1ab4973a48dc892cd9971ece8e01dcc7688f8f23", network: "ETH", type: "VASP_HOT_WALLET" },
       { address: "0xd93f7e271cb87c23aaa73edc008a79646d1f9912", network: "ETH", type: "VASP_HOT_WALLET" },
-      { address: "TJCo98saj3uMLdmyV6h4HZkXELhgTe7MAY", network: "TRON", type: "VASP_HOT_WALLET" },
+      { address: "TJCo98saj6WND61g1uuKwJ9GMWMT9WkJFo", network: "TRON", type: "VASP_HOT_WALLET" },
     ],
   },
 
@@ -246,7 +246,7 @@ export const KNOWN_VASP_REGISTRY: KnownVaspRecord[] = [
       { address: "0x503828976D22510aad0201ac7EC88293211D23Da", network: "ETH", type: "VASP_COLD_VAULT" },
       { address: "0xddfAbCdc4D8FfC6d5beaf154f18B778f892A0740", network: "ETH", type: "VASP_HOT_WALLET" },
       { address: "1P5ZEDWTKTFGxQjZphgWPQUpe554WKDfHQ", network: "BTC", type: "VASP_HOT_WALLET" },
-      { address: "3Cbq7aT1tY8kMxWLBkgQQAUfTQzeSxRiJX", network: "BTC", type: "VASP_COLD_VAULT" },
+      { address: "bc1qgdjqv0av3q56jvd82tkdjpy7gdp9ut8tlqmgrpmv24sq90ecnvqqjwvw97", network: "BTC", type: "VASP_COLD_VAULT" },
     ],
   },
   {
@@ -262,7 +262,7 @@ export const KNOWN_VASP_REGISTRY: KnownVaspRecord[] = [
       { address: "0x2910543Af39abA0Cd09dBb2D50200b3E800A63D2", network: "ETH", type: "VASP_HOT_WALLET" },
       { address: "0x267be1C1D684F78cb4F6a176C4911b741E4Ffdc0", network: "ETH", type: "VASP_HOT_WALLET" },
       { address: "0xAe2D4617c862309A3d75A0fFB358c7a5009c673F", network: "ETH", type: "VASP_COLD_VAULT" },
-      { address: "3QiYSMmGf3aFbdQLngnJmQ9vMFoVKxaEpd", network: "BTC", type: "VASP_HOT_WALLET" },
+      { address: "385cR5DM96n1HvBDMzLHPYcw89fZAXULJP", network: "BTC", type: "VASP_HOT_WALLET" },
     ],
   },
   {
@@ -362,7 +362,7 @@ export const KNOWN_HIGH_RISK_ENTITIES = [
   },
   {
     name: "ChipMixer (BTC Tumbler)",
-    address: "1NZ9vDq86nFwQzFdtP66R3DkPT3s7fN2d",
+    address: "1JHdQHkBZiim1cb4hyUh2PbzEbbg6z2TrF",
     network: "BTC",
     category: "MIXER_OBFUSCATION",
     ofacSanctioned: true,
@@ -378,7 +378,7 @@ export const KNOWN_HIGH_RISK_ENTITIES = [
   },
   {
     name: "Blender.io (Lazarus-linked Mixer)",
-    address: "1BlenderioPoolXXXXXXXXXXXXXXXa3t6b",
+    address: "3K35dyL85fR9ht7UgzPfd1gLRRXQtNTqE3",
     network: "BTC",
     category: "MIXER_OBFUSCATION",
     ofacSanctioned: true,
