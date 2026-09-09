@@ -10,6 +10,7 @@ import LegalTab from "@/components/LegalTab";
 import DossierTab from "@/components/DossierTab";
 import { GraphTraceResult, BlockchainNetwork } from "@/lib/types";
 import { AUTHENTIC_FORENSIC_CASES } from "@/lib/forensic-cases";
+import { detectCryptoAsset } from "@/lib/rpc/multi-chain";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<Tab>("overview");
@@ -33,7 +34,16 @@ export default function Home() {
     setActiveTab("trace");
 
     try {
-      const netParam = network || (selectedNetwork === "AUTO" ? undefined : selectedNetwork);
+      const detected = detectCryptoAsset(target);
+      const detectedNet = detected.network !== "UNKNOWN" ? detected.network : undefined;
+      // Syntax-evident network detection takes precedence over stale manual dropdown state
+      const netParam = network || detectedNet || (selectedNetwork === "AUTO" ? undefined : selectedNetwork);
+
+      // Keep selectedNetwork synchronized so UI reflects the true active chain
+      if (netParam && selectedNetwork !== netParam) {
+        setSelectedNetwork(netParam);
+      }
+
       const res = await fetch("/api/trace", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -59,7 +69,13 @@ export default function Home() {
 
   const handleSelectCase = useCallback((address: string) => {
     setSearchAddress(address);
-    runTrace(address, true);
+    const matched = AUTHENTIC_FORENSIC_CASES.find(c =>
+      c.initialSuspectAddress.toLowerCase() === address.toLowerCase() ||
+      c.caseId.toLowerCase() === address.toLowerCase()
+    );
+    const net = matched ? matched.network : undefined;
+    if (net) setSelectedNetwork(net);
+    runTrace(address, true, net);
   }, [runTrace]);
 
   const handleTraceAddress = useCallback((address: string, network?: string) => {

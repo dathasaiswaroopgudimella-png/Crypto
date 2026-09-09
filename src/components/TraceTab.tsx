@@ -13,6 +13,8 @@ import ReactFlow, {
   Handle,
   Position,
   MarkerType,
+  ReactFlowProvider,
+  useReactFlow,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { GraphTraceResult, ForensicNode, FraudPattern, PatternType, ForensicEdge, EntityType } from "@/lib/types";
@@ -150,6 +152,20 @@ const nodeTypes = {
   customForensicNode: ForensicNodeCard,
 };
 
+function ViewportAutoFitter({ triggerKey }: { triggerKey: string }) {
+  const { fitView } = useReactFlow();
+
+  useEffect(() => {
+    if (!triggerKey || triggerKey === "empty") return;
+    const timer = setTimeout(() => {
+      fitView({ padding: 0.22, duration: 400 });
+    }, 60);
+    return () => clearTimeout(timer);
+  }, [triggerKey, fitView]);
+
+  return null;
+}
+
 type ViewMode = "STUDIO" | "FOCUS_PATH" | "SPLIT_RADAR";
 type RoleFilter = "ALL" | "SUSPECT" | "MULE_WALLET" | "BRIDGE_CONTRACT" | "MIXER_OBFUSCATION" | "VASP";
 
@@ -236,9 +252,18 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
       edgeList = edgeList.filter(e => focusEdgeSet.has(e.id));
     }
 
-    // Strictly ensure both source and target nodes exist in the currently visible node set
-    const visibleNodeIds = new Set(filteredNodes.map(n => n.id));
-    edgeList = edgeList.filter(e => visibleNodeIds.has(e.source) && visibleNodeIds.has(e.target));
+    // Strictly ensure both source and target nodes exist in the currently visible node set (case-resilient)
+    const nodeMapById = new Map(filteredNodes.map(n => [n.id.toLowerCase(), n.id]));
+    edgeList = edgeList.filter(e => {
+      const srcMatch = nodeMapById.get(String(e.source || "").toLowerCase());
+      const tgtMatch = nodeMapById.get(String(e.target || "").toLowerCase());
+      if (srcMatch && tgtMatch) {
+        e.source = srcMatch;
+        e.target = tgtMatch;
+        return true;
+      }
+      return false;
+    });
 
     const rfEdges: Edge[] = edgeList.map((edge, idx) => {
       const src = String(edge.source || "");
@@ -612,25 +637,30 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
 
       {/* Main Spacious Canvas */}
       <div style={{ flex: 1, position: "relative" }}>
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onNodeClick={handleNodeClick}
-          onEdgeClick={handleEdgeClick}
-          nodeTypes={nodeTypes}
-          fitView
-          minZoom={0.2}
-          maxZoom={1.5}
-        >
-          <Background color="#1a2742" gap={24} size={1} variant={BackgroundVariant.Dots} />
-          <Controls style={{ background: "#0b1226", border: "1px solid #334155", borderRadius: 8 }} />
-          <MiniMap
-            nodeColor={(n) => (NODE_THEMES[n.data?.entityType]?.border || "#475569")}
-            style={{ background: "#0b1226", border: "1px solid #334155", borderRadius: 8 }}
-          />
-        </ReactFlow>
+        <ReactFlowProvider>
+          <ReactFlow
+            key={traceResult ? `${traceResult.rootAddress}_${traceResult.nodes.length}_${viewMode}_${roleFilter}_${isFocusPathActive}` : "empty"}
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onNodeClick={handleNodeClick}
+            onEdgeClick={handleEdgeClick}
+            nodeTypes={nodeTypes}
+            fitView
+            minZoom={0.15}
+            maxZoom={1.8}
+            defaultViewport={{ x: 0, y: 0, zoom: 0.75 }}
+          >
+            <ViewportAutoFitter triggerKey={traceResult ? `${traceResult.rootAddress}_${traceResult.nodes.length}_${viewMode}_${roleFilter}_${isFocusPathActive}` : "empty"} />
+            <Background color="#1a2742" gap={24} size={1} variant={BackgroundVariant.Dots} />
+            <Controls style={{ background: "#0b1226", border: "1px solid #334155", borderRadius: 8 }} />
+            <MiniMap
+              nodeColor={(n) => (NODE_THEMES[n.data?.entityType]?.border || "#475569")}
+              style={{ background: "#0b1226", border: "1px solid #334155", borderRadius: 8 }}
+            />
+          </ReactFlow>
+        </ReactFlowProvider>
       </div>
 
       {/* Node Forensic Inspection Drawer */}
