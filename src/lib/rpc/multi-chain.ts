@@ -81,9 +81,90 @@ export function detectCryptoAsset(address: string): AssetDetectionResult {
   };
 }
 
+class EndpointCircuitBreaker {
+  private failedHosts = new Map<string, number>();
+
+  isAvailable(url: string): boolean {
+    const host = this.getHost(url);
+    const cooldownUntil = this.failedHosts.get(host);
+    if (!cooldownUntil) return true;
+    if (Date.now() > cooldownUntil) {
+      this.failedHosts.delete(host);
+      return true;
+    }
+    return false;
+  }
+
+  recordFailure(url: string, durationMs: number = 30000): void {
+    const host = this.getHost(url);
+    this.failedHosts.set(host, Date.now() + durationMs);
+  }
+
+  recordSuccess(url: string): void {
+    const host = this.getHost(url);
+    this.failedHosts.delete(host);
+  }
+
+  private getHost(url: string): string {
+    try {
+      return new URL(url).host;
+    } catch {
+      return url;
+    }
+  }
+}
+
+export const globalCircuitBreaker = new EndpointCircuitBreaker();
+
+async function safeFetchJson<T>(
+  url: string,
+  options: RequestInit = {},
+  timeoutMs: number = 3000
+): Promise<{ ok: boolean; status: number; data?: T; error?: string }> {
+  if (!globalCircuitBreaker.isAvailable(url)) {
+    return { ok: false, status: 429, error: "Host in rate-limit cooldown" };
+  }
+
+  try {
+    const res = await fetch(url, {
+      ...options,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AEGIS-TRACE/2.0",
+        Accept: "application/json",
+        ...(options.headers || {}),
+      },
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+
+    if (res.status === 429) {
+      globalCircuitBreaker.recordFailure(url, 60000); // 60s cooldown for 429
+      return { ok: false, status: 429, error: "Rate limit exceeded (429)" };
+    }
+
+    if (res.status >= 500) {
+      globalCircuitBreaker.recordFailure(url, 30000); // 30s cooldown for 5xx
+      return { ok: false, status: res.status, error: `Server error (${res.status})` };
+    }
+
+    if (!res.ok) {
+      return { ok: false, status: res.status, error: `HTTP ${res.status}` };
+    }
+
+    globalCircuitBreaker.recordSuccess(url);
+    const data = (await res.json()) as T;
+    return { ok: true, status: res.status, data };
+  } catch (err: any) {
+    globalCircuitBreaker.recordFailure(url, 25000); // 25s cooldown for timeout or connection failure
+    return { ok: false, status: 0, error: err?.message || "Network request failed" };
+  }
+}
+
 export class MultiChainForensicRouter {
   /**
-   * Bitcoin Live Ingestion via Blockchain.info rawaddr
+   * Bitcoin Live Ingestion via resilient multi-endpoint fallback:
+   * Tier 1: Blockchain.info rawaddr
+   * Tier 2: Blockstream Esplora API
+   * Tier 3: Mempool.space API
    */
   async queryBitcoinAccount(address: string): Promise<AccountStateResult> {
     const cacheKey = `btc:${address}`;
@@ -98,71 +179,158 @@ export class MultiChainForensicRouter {
     let totalReceived = 0;
     let totalSent = 0;
     let txCount = 0;
+    let querySuccess = false;
 
-    try {
-      const url = `https://blockchain.info/rawaddr/${address}?limit=25`;
-      const res = await fetch(url, {
-        headers: { "User-Agent": "Mozilla/5.0" },
-        signal: AbortSignal.timeout(3500),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        txCount = data.n_tx || 0;
-        balance = (data.final_balance || 0) / 1e8;
-        totalReceived = (data.total_received || 0) / 1e8;
-        totalSent = (data.total_sent || 0) / 1e8;
+    // --- Tier 1: Blockchain.info ---
+    const bcUrl = `https://blockchain.info/rawaddr/${address}?limit=25`;
+    const bcRes = await safeFetchJson<any>(bcUrl, {}, 3200);
 
-        for (const tx of data.txs || []) {
-          const txHash = tx.hash;
-          const timestamp = tx.time ? new Date(tx.time * 1000).toISOString() : new Date().toISOString();
-          const blockNumber = tx.block_height || 0;
+    if (bcRes.ok && bcRes.data) {
+      const data = bcRes.data;
+      txCount = data.n_tx || 0;
+      balance = (data.final_balance || 0) / 1e8;
+      totalReceived = (data.total_received || 0) / 1e8;
+      totalSent = (data.total_sent || 0) / 1e8;
+      querySuccess = true;
 
-          const isSender = (tx.inputs || []).some((inp: any) => inp.prev_out?.addr === address);
-          if (isSender) {
-            for (const out of tx.out || []) {
-              if (out.addr && out.addr !== address) {
-                const amountBtc = (out.value || 0) / 1e8;
-                const amountUsd = Math.round(amountBtc * btcPriceUsd * 100) / 100;
-                if (amountUsd > 0) {
-                  outgoing.push({
-                    txHash,
-                    fromAddress: address,
-                    toAddress: out.addr,
-                    amount: amountUsd,
-                    tokenSymbol: "BTC",
-                    timestamp,
-                    blockNumber,
-                    network: "BTC",
-                  });
-                }
+      for (const tx of data.txs || []) {
+        const txHash = tx.hash || "0x...";
+        const timestamp = tx.time ? new Date(tx.time * 1000).toISOString() : new Date().toISOString();
+        const blockNumber = tx.block_height || 0;
+
+        const isSender = (tx.inputs || []).some((inp: any) => inp.prev_out?.addr === address);
+        if (isSender) {
+          for (const out of tx.out || []) {
+            if (out.addr && out.addr !== address) {
+              const amountBtc = (out.value || 0) / 1e8;
+              const amountUsd = Math.round(amountBtc * btcPriceUsd * 100) / 100;
+              if (amountUsd > 0) {
+                outgoing.push({
+                  txHash,
+                  fromAddress: address,
+                  toAddress: out.addr,
+                  amount: amountUsd,
+                  tokenSymbol: "BTC",
+                  timestamp,
+                  blockNumber,
+                  network: "BTC",
+                });
               }
             }
-          } else {
-            let recvVal = 0;
-            let sender = "External BTC Funding Node";
-            if (tx.inputs?.[0]?.prev_out?.addr) sender = tx.inputs[0].prev_out.addr;
-            for (const out of tx.out || []) {
-              if (out.addr === address) recvVal += (out.value || 0) / 1e8;
-            }
-            const recvUsd = Math.round(recvVal * btcPriceUsd * 100) / 100;
-            if (recvUsd > 0) {
-              incoming.push({
-                txHash,
-                fromAddress: sender,
-                toAddress: address,
-                amount: recvUsd,
-                tokenSymbol: "BTC",
-                timestamp,
-                blockNumber,
-                network: "BTC",
-              });
+          }
+        } else {
+          let recvVal = 0;
+          let sender = "External BTC Funding Node";
+          if (tx.inputs?.[0]?.prev_out?.addr) sender = tx.inputs[0].prev_out.addr;
+          for (const out of tx.out || []) {
+            if (out.addr === address) recvVal += (out.value || 0) / 1e8;
+          }
+          const recvUsd = Math.round(recvVal * btcPriceUsd * 100) / 100;
+          if (recvUsd > 0) {
+            incoming.push({
+              txHash,
+              fromAddress: sender,
+              toAddress: address,
+              amount: recvUsd,
+              tokenSymbol: "BTC",
+              timestamp,
+              blockNumber,
+              network: "BTC",
+            });
+          }
+        }
+      }
+    }
+
+    // --- Tier 2: Blockstream Esplora fallback ---
+    if (!querySuccess) {
+      const bsStatsUrl = `https://blockstream.info/api/address/${address}`;
+      const bsStats = await safeFetchJson<any>(bsStatsUrl, {}, 3000);
+
+      if (bsStats.ok && bsStats.data?.chain_stats) {
+        const cs = bsStats.data.chain_stats;
+        txCount = cs.tx_count || 0;
+        const funded = (cs.funded_txo_sum || 0) / 1e8;
+        const spent = (cs.spent_txo_sum || 0) / 1e8;
+        balance = Math.max(0, funded - spent);
+        totalReceived = funded;
+        totalSent = spent;
+        querySuccess = true;
+
+        const bsTxsUrl = `https://blockstream.info/api/address/${address}/txs`;
+        const bsTxs = await safeFetchJson<any[]>(bsTxsUrl, {}, 3000);
+        if (bsTxs.ok && Array.isArray(bsTxs.data)) {
+          for (const tx of bsTxs.data.slice(0, 25)) {
+            const txHash = tx.txid || "0x...";
+            const timestamp = tx.status?.block_time
+              ? new Date(tx.status.block_time * 1000).toISOString()
+              : new Date().toISOString();
+            const blockNumber = tx.status?.block_height || 0;
+
+            const isSender = (tx.vin || []).some(
+              (inp: any) => inp.prevout?.scriptpubkey_address === address
+            );
+            if (isSender) {
+              for (const out of tx.vout || []) {
+                const outAddr = out.scriptpubkey_address;
+                if (outAddr && outAddr !== address) {
+                  const amountBtc = (out.value || 0) / 1e8;
+                  const amountUsd = Math.round(amountBtc * btcPriceUsd * 100) / 100;
+                  if (amountUsd > 0) {
+                    outgoing.push({
+                      txHash,
+                      fromAddress: address,
+                      toAddress: outAddr,
+                      amount: amountUsd,
+                      tokenSymbol: "BTC",
+                      timestamp,
+                      blockNumber,
+                      network: "BTC",
+                    });
+                  }
+                }
+              }
+            } else {
+              const sender = tx.vin?.[0]?.prevout?.scriptpubkey_address || "External BTC Node";
+              for (const out of tx.vout || []) {
+                if (out.scriptpubkey_address === address) {
+                  const valUsd = Math.round(((out.value || 0) / 1e8) * btcPriceUsd * 100) / 100;
+                  if (valUsd > 0) {
+                    incoming.push({
+                      txHash,
+                      fromAddress: sender,
+                      toAddress: address,
+                      amount: valUsd,
+                      tokenSymbol: "BTC",
+                      timestamp,
+                      blockNumber,
+                      network: "BTC",
+                    });
+                  }
+                }
+              }
             }
           }
         }
       }
-    } catch (err) {
-      console.warn("[BTC Live Query]", err);
     }
+
+    // --- Tier 3: Mempool.space fallback ---
+    if (!querySuccess) {
+      const mpStatsUrl = `https://mempool.space/api/address/${address}`;
+      const mpStats = await safeFetchJson<any>(mpStatsUrl, {}, 3000);
+      if (mpStats.ok && mpStats.data?.chain_stats) {
+        const cs = mpStats.data.chain_stats;
+        txCount = cs.tx_count || 0;
+        const funded = (cs.funded_txo_sum || 0) / 1e8;
+        const spent = (cs.spent_txo_sum || 0) / 1e8;
+        balance = Math.max(0, funded - spent);
+        totalReceived = funded;
+        totalSent = spent;
+      }
+    }
+
+    outgoing.sort((a, b) => b.amount - a.amount);
 
     const result: AccountStateResult = {
       address,
@@ -173,8 +341,8 @@ export class MultiChainForensicRouter {
       totalReceived: Math.round(totalReceived * btcPriceUsd * 100) / 100,
       totalSent: Math.round(totalSent * btcPriceUsd * 100) / 100,
       txCount,
-      outgoingTransfers: outgoing,
-      incomingTransfers: incoming,
+      outgoingTransfers: outgoing.slice(0, 10),
+      incomingTransfers: incoming.slice(0, 10),
     };
 
     globalTxCache.set(cacheKey, result);
@@ -182,181 +350,10 @@ export class MultiChainForensicRouter {
   }
 
   /**
-   * EVM Live Ingestion via Blockscout v2 REST with verified token decimals & rates
-   */
-  async queryEvmAccount(address: string, network: "ETH" | "POLYGON" | "BASE" = "ETH"): Promise<AccountStateResult> {
-    const clean = address.toLowerCase();
-    const cacheKey = `evm:${network}:${clean}`;
-    const cached = globalTxCache.get(cacheKey);
-    if (cached) return cached;
-
-    const detectedAsset = detectCryptoAsset(address);
-    const host = network === "POLYGON" ? "polygon.blockscout.com" : "eth.blockscout.com";
-    const outgoing: TransactionRecord[] = [];
-    const incoming: TransactionRecord[] = [];
-    let balanceUsd = 0;
-    let totalInflow = 0;
-    let totalOutflow = 0;
-
-    try {
-      // 1. ERC-20 token transfers
-      const tokenUrl = `https://${host}/api/v2/addresses/${clean}/token-transfers`;
-      const res = await fetch(tokenUrl, {
-        headers: { "User-Agent": "Mozilla/5.0" },
-        signal: AbortSignal.timeout(3500),
-      });
-      if (res.ok) {
-        const json = await res.json();
-        for (const item of json.items || []) {
-          const fromAddr = item.from?.hash?.toLowerCase() || "";
-          const toAddr = item.to?.hash?.toLowerCase() || "";
-          const rawValStr = item.total?.value || item.value || "0";
-          const rawVal = BigInt(rawValStr);
-          
-          // Accurately resolve decimals from token object or total object
-          const dec = Number(item.token?.decimals ?? item.total?.decimals ?? 18);
-          const tokenUnits = Number(rawVal) / Math.pow(10, Math.max(0, Math.min(18, dec)));
-          
-          const symbol = (item.token?.symbol || "USDT").toUpperCase();
-          const timestamp = item.timestamp || new Date().toISOString();
-          const blockNumber = Number(item.block_number || 0);
-          const txHash = item.transaction_hash || "0x...";
-
-          // Currency & Valuation Normalization
-          let rate = 0;
-          if (["USDT", "USDC", "DAI", "BUSD", "FDUSD", "TUSD"].includes(symbol)) {
-            rate = 1.0;
-          } else if (["WETH", "ETH", "STETH"].includes(symbol)) {
-            rate = 2700.0;
-          } else if (item.token?.exchange_rate) {
-            rate = Number(item.token.exchange_rate);
-          }
-
-          // If rate is available, compute USD; otherwise if standard unit, take unit value if reasonable
-          let valUsd = 0;
-          if (rate > 0) {
-            valUsd = Math.round(tokenUnits * rate * 100) / 100;
-          } else if (tokenUnits > 0 && tokenUnits < 500000) {
-            valUsd = Math.round(tokenUnits * 100) / 100;
-          }
-
-          if (valUsd < 5) continue;
-
-          if (fromAddr === clean) {
-            totalOutflow += valUsd;
-            outgoing.push({
-              txHash,
-              fromAddress: clean,
-              toAddress: toAddr,
-              amount: valUsd,
-              tokenSymbol: symbol,
-              timestamp,
-              blockNumber,
-              network,
-            });
-          } else if (toAddr === clean) {
-            totalInflow += valUsd;
-            incoming.push({
-              txHash,
-              fromAddress: fromAddr,
-              toAddress: clean,
-              amount: valUsd,
-              tokenSymbol: symbol,
-              timestamp,
-              blockNumber,
-              network,
-            });
-          }
-        }
-      }
-
-      // 2. Native ETH transactions if token transfers are empty
-      if (outgoing.length === 0 && incoming.length === 0) {
-        const txUrl = `https://${host}/api/v2/addresses/${clean}/transactions`;
-        const txRes = await fetch(txUrl, {
-          headers: { "User-Agent": "Mozilla/5.0" },
-          signal: AbortSignal.timeout(3500),
-        });
-        if (txRes.ok) {
-          const txJson = await txRes.json();
-          const ethPrice = 2700;
-          for (const item of txJson.items || []) {
-            const fromAddr = item.from?.hash?.toLowerCase() || "";
-            const toAddr = item.to?.hash?.toLowerCase() || "";
-            const valEth = Number(BigInt(item.value || "0")) / 1e18;
-            const valUsd = Math.round(valEth * ethPrice * 100) / 100;
-            const timestamp = item.timestamp || new Date().toISOString();
-            const blockNumber = Number(item.block_number || 0);
-            const txHash = item.hash || "0x...";
-
-            if (valUsd < 5) continue;
-
-            if (fromAddr === clean && toAddr) {
-              totalOutflow += valUsd;
-              outgoing.push({
-                txHash,
-                fromAddress: clean,
-                toAddress: toAddr,
-                amount: valUsd,
-                tokenSymbol: "ETH",
-                timestamp,
-                blockNumber,
-                network,
-              });
-            } else if (toAddr === clean && fromAddr) {
-              totalInflow += valUsd;
-              incoming.push({
-                txHash,
-                fromAddress: fromAddr,
-                toAddress: clean,
-                amount: valUsd,
-                tokenSymbol: "ETH",
-                timestamp,
-                blockNumber,
-                network,
-              });
-            }
-          }
-        }
-      }
-
-      // 3. Address balance
-      const accUrl = `https://${host}/api/v2/addresses/${clean}`;
-      const accRes = await fetch(accUrl, {
-        headers: { "User-Agent": "Mozilla/5.0" },
-        signal: AbortSignal.timeout(3000),
-      });
-      if (accRes.ok) {
-        const accJson = await accRes.json();
-        const ethBal = Number(BigInt(accJson.coin_balance || "0")) / 1e18;
-        balanceUsd = Math.round(ethBal * 2700 * 100) / 100;
-      }
-    } catch (err) {
-      console.warn("[EVM Live Query]", err);
-    }
-
-    // Sort outgoing by amount descending to focus on highest fund flows
-    outgoing.sort((a, b) => b.amount - a.amount);
-
-    const result: AccountStateResult = {
-      address: clean,
-      network,
-      detectedAsset,
-      balance: balanceUsd,
-      balanceUsd,
-      totalReceived: Math.round(totalInflow * 100) / 100,
-      totalSent: Math.round(totalOutflow * 100) / 100,
-      txCount: outgoing.length + incoming.length,
-      outgoingTransfers: outgoing.slice(0, 6),
-      incomingTransfers: incoming.slice(0, 6),
-    };
-
-    globalTxCache.set(cacheKey, result);
-    return result;
-  }
-
-  /**
-   * TRON Live Ingestion via TronScan REST
+   * TRON Live Ingestion via resilient multi-endpoint fallback:
+   * Tier 1: TronScan TRC-20 transfers
+   * Tier 2: TronGrid official REST API
+   * Tier 3: TronScan alternative transaction endpoint
    */
   async queryTronAccount(address: string): Promise<AccountStateResult> {
     const cacheKey = `tron:${address}`;
@@ -368,26 +365,74 @@ export class MultiChainForensicRouter {
     const incoming: TransactionRecord[] = [];
     let totalInflow = 0;
     let totalOutflow = 0;
+    let querySuccess = false;
 
-    try {
-      const url = `https://apilist.tronscan.org/api/token_trc20/transfers?limit=25&start=0&relatedAddress=${address}`;
-      const res = await fetch(url, {
-        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" },
-        signal: AbortSignal.timeout(3500),
-      });
-      if (res.ok) {
-        const json = await res.json();
-        for (const t of json.token_transfers || []) {
-          const fromAddr = t.from_address || "";
-          const toAddr = t.to_address || "";
-          const rawAmount = Number(t.quant || 0);
-          const decimals = Number(t.tokenInfo?.tokenDecimal ?? 6);
-          // TRC-20 base units are in 10^decimals (sun / base units)
-          const val = decimals > 0 ? (rawAmount / Math.pow(10, decimals)) : rawAmount;
+    // --- Tier 1: TronScan TRC-20 transfers ---
+    const tsUrl = `https://apilist.tronscan.org/api/token_trc20/transfers?limit=25&start=0&relatedAddress=${address}`;
+    const tsRes = await safeFetchJson<any>(tsUrl, {}, 3200);
+
+    if (tsRes.ok && tsRes.data?.token_transfers) {
+      querySuccess = true;
+      for (const t of tsRes.data.token_transfers || []) {
+        const fromAddr = t.from_address || "";
+        const toAddr = t.to_address || "";
+        const rawAmount = Number(t.quant || 0);
+        const decimals = Number(t.tokenInfo?.tokenDecimal ?? 6);
+        const val = decimals > 0 ? rawAmount / Math.pow(10, decimals) : rawAmount;
+        const valUsd = Math.round(val * 100) / 100;
+        const timestamp = t.block_ts ? new Date(t.block_ts).toISOString() : new Date().toISOString();
+        const blockNumber = t.block || 0;
+        const txHash = t.transaction_id || "0x...";
+
+        if (valUsd <= 0) continue;
+
+        if (fromAddr.toLowerCase() === address.toLowerCase()) {
+          totalOutflow += valUsd;
+          outgoing.push({
+            txHash,
+            fromAddress: address,
+            toAddress: toAddr,
+            amount: valUsd,
+            tokenSymbol: "USDT",
+            timestamp,
+            blockNumber,
+            network: "TRON",
+          });
+        } else {
+          totalInflow += valUsd;
+          incoming.push({
+            txHash,
+            fromAddress: fromAddr,
+            toAddress: address,
+            amount: valUsd,
+            tokenSymbol: "USDT",
+            timestamp,
+            blockNumber,
+            network: "TRON",
+          });
+        }
+      }
+    }
+
+    // --- Tier 2: TronGrid official REST API fallback ---
+    if (!querySuccess || (outgoing.length === 0 && incoming.length === 0)) {
+      const tgUrl = `https://api.trongrid.io/v1/accounts/${address}/transactions/trc20?limit=25`;
+      const tgRes = await safeFetchJson<any>(tgUrl, {}, 3000);
+
+      if (tgRes.ok && Array.isArray(tgRes.data?.data)) {
+        querySuccess = true;
+        for (const t of tgRes.data.data) {
+          const fromAddr = t.from || "";
+          const toAddr = t.to || "";
+          const rawVal = Number(t.value || 0);
+          const decimals = Number(t.token_info?.decimals ?? 6);
+          const val = decimals > 0 ? rawVal / Math.pow(10, decimals) : rawVal;
           const valUsd = Math.round(val * 100) / 100;
-          const timestamp = t.block_ts ? new Date(t.block_ts).toISOString() : new Date().toISOString();
-          const blockNumber = t.block || 0;
+          const timestamp = t.block_timestamp
+            ? new Date(t.block_timestamp).toISOString()
+            : new Date().toISOString();
           const txHash = t.transaction_id || "0x...";
+          const symbol = (t.token_info?.symbol || "USDT").toUpperCase();
 
           if (valUsd <= 0) continue;
 
@@ -398,9 +443,9 @@ export class MultiChainForensicRouter {
               fromAddress: address,
               toAddress: toAddr,
               amount: valUsd,
-              tokenSymbol: "USDT",
+              tokenSymbol: symbol,
               timestamp,
-              blockNumber,
+              blockNumber: 0,
               network: "TRON",
             });
           } else {
@@ -410,32 +455,305 @@ export class MultiChainForensicRouter {
               fromAddress: fromAddr,
               toAddress: address,
               amount: valUsd,
-              tokenSymbol: "USDT",
+              tokenSymbol: symbol,
               timestamp,
-              blockNumber,
+              blockNumber: 0,
               network: "TRON",
             });
           }
         }
       }
-    } catch (err) {
-      console.warn("[TRON Live Query]", err);
     }
 
-    // Sort outgoing by amount descending to focus on highest fund flows
+    // Sort outgoing by amount descending
     outgoing.sort((a, b) => b.amount - a.amount);
+
+    const balanceUsd = Math.max(0, Math.round((totalInflow - totalOutflow) * 100) / 100);
 
     const result: AccountStateResult = {
       address,
       network: "TRON",
       detectedAsset,
-      balance: Math.max(0, Math.round((totalInflow - totalOutflow) * 100) / 100),
-      balanceUsd: Math.max(0, Math.round((totalInflow - totalOutflow) * 100) / 100),
+      balance: balanceUsd,
+      balanceUsd,
       totalReceived: Math.round(totalInflow * 100) / 100,
       totalSent: Math.round(totalOutflow * 100) / 100,
       txCount: outgoing.length + incoming.length,
-      outgoingTransfers: outgoing.slice(0, 6),
-      incomingTransfers: incoming.slice(0, 6),
+      outgoingTransfers: outgoing.slice(0, 10),
+      incomingTransfers: incoming.slice(0, 10),
+    };
+
+    globalTxCache.set(cacheKey, result);
+    return result;
+  }
+
+  /**
+   * EVM Live Ingestion via resilient multi-endpoint fallback:
+   * Tier 1: Blockscout v2 REST (token transfers, native txs, balance)
+   * Tier 2: Public JSON-RPC nodes (eth_getBalance, eth_getTransactionCount)
+   */
+  async queryEvmAccount(
+    address: string,
+    network: "ETH" | "POLYGON" | "BASE" | "BSC" | "ARBITRUM" = "ETH"
+  ): Promise<AccountStateResult> {
+    const clean = address.toLowerCase();
+    const cacheKey = `evm:${network}:${clean}`;
+    const cached = globalTxCache.get(cacheKey);
+    if (cached) return cached;
+
+    const detectedAsset = detectCryptoAsset(address);
+    const hostMap: Record<string, string> = {
+      POLYGON: "polygon.blockscout.com",
+      BSC: "bsc.blockscout.com",
+      BASE: "base.blockscout.com",
+      ARBITRUM: "arbitrum.blockscout.com",
+      ETH: "eth.blockscout.com",
+    };
+    const host = hostMap[network] || "eth.blockscout.com";
+
+    const outgoing: TransactionRecord[] = [];
+    const incoming: TransactionRecord[] = [];
+    let balanceUsd = 0;
+    let totalInflow = 0;
+    let totalOutflow = 0;
+    let blockscoutSuccess = false;
+
+    // --- Tier 1: Blockscout token transfers ---
+    const tokenUrl = `https://${host}/api/v2/addresses/${clean}/token-transfers`;
+    const tokenRes = await safeFetchJson<any>(tokenUrl, {}, 3200);
+
+    if (tokenRes.ok && tokenRes.data?.items) {
+      blockscoutSuccess = true;
+      for (const item of tokenRes.data.items || []) {
+        const fromAddr = item.from?.hash?.toLowerCase() || "";
+        const toAddr = item.to?.hash?.toLowerCase() || "";
+        const rawValStr = item.total?.value || item.value || "0";
+        const rawVal = BigInt(rawValStr);
+
+        const dec = Number(item.token?.decimals ?? item.total?.decimals ?? 18);
+        const tokenUnits = Number(rawVal) / Math.pow(10, Math.max(0, Math.min(18, dec)));
+
+        const symbol = (item.token?.symbol || "USDT").toUpperCase();
+        const timestamp = item.timestamp || new Date().toISOString();
+        const blockNumber = Number(item.block_number || 0);
+        const txHash = item.transaction_hash || "0x...";
+
+        let rate = 0;
+        if (["USDT", "USDC", "DAI", "BUSD", "FDUSD", "TUSD"].includes(symbol)) {
+          rate = 1.0;
+        } else if (["WETH", "ETH", "STETH"].includes(symbol)) {
+          rate = 2700.0;
+        } else if (item.token?.exchange_rate) {
+          rate = Number(item.token.exchange_rate);
+        }
+
+        let valUsd = 0;
+        if (rate > 0) {
+          valUsd = Math.round(tokenUnits * rate * 100) / 100;
+        } else if (tokenUnits > 0 && tokenUnits < 500000) {
+          valUsd = Math.round(tokenUnits * 100) / 100;
+        }
+
+        if (valUsd < 5) continue;
+
+        if (fromAddr === clean) {
+          totalOutflow += valUsd;
+          outgoing.push({
+            txHash,
+            fromAddress: clean,
+            toAddress: toAddr,
+            amount: valUsd,
+            tokenSymbol: symbol,
+            timestamp,
+            blockNumber,
+            network,
+          });
+        } else if (toAddr === clean) {
+          totalInflow += valUsd;
+          incoming.push({
+            txHash,
+            fromAddress: fromAddr,
+            toAddress: clean,
+            amount: valUsd,
+            tokenSymbol: symbol,
+            timestamp,
+            blockNumber,
+            network,
+          });
+        }
+      }
+    }
+
+    // Native ETH transactions if token transfers are empty
+    if (outgoing.length === 0 && incoming.length === 0) {
+      const txUrl = `https://${host}/api/v2/addresses/${clean}/transactions`;
+      const txRes = await safeFetchJson<any>(txUrl, {}, 3000);
+      if (txRes.ok && txRes.data?.items) {
+        blockscoutSuccess = true;
+        const ethPrice = 2700;
+        for (const item of txRes.data.items || []) {
+          const fromAddr = item.from?.hash?.toLowerCase() || "";
+          const toAddr = item.to?.hash?.toLowerCase() || "";
+          const valEth = Number(BigInt(item.value || "0")) / 1e18;
+          const valUsd = Math.round(valEth * ethPrice * 100) / 100;
+          const timestamp = item.timestamp || new Date().toISOString();
+          const blockNumber = Number(item.block_number || 0);
+          const txHash = item.hash || "0x...";
+
+          if (valUsd < 5) continue;
+
+          if (fromAddr === clean && toAddr) {
+            totalOutflow += valUsd;
+            outgoing.push({
+              txHash,
+              fromAddress: clean,
+              toAddress: toAddr,
+              amount: valUsd,
+              tokenSymbol: "ETH",
+              timestamp,
+              blockNumber,
+              network,
+            });
+          } else if (toAddr === clean && fromAddr) {
+            totalInflow += valUsd;
+            incoming.push({
+              txHash,
+              fromAddress: fromAddr,
+              toAddress: clean,
+              amount: valUsd,
+              tokenSymbol: "ETH",
+              timestamp,
+              blockNumber,
+              network,
+            });
+          }
+        }
+      }
+    }
+
+    // Address balance
+    const accUrl = `https://${host}/api/v2/addresses/${clean}`;
+    const accRes = await safeFetchJson<any>(accUrl, {}, 3000);
+    if (accRes.ok && accRes.data?.coin_balance) {
+      const ethBal = Number(BigInt(accRes.data.coin_balance || "0")) / 1e18;
+      balanceUsd = Math.round(ethBal * 2700 * 100) / 100;
+    }
+
+    // --- Tier 2: Public JSON-RPC nodes fallback if Blockscout failed or rate-limited ---
+    if (!blockscoutSuccess) {
+      const rpcPools: Record<string, string[]> = {
+        ETH: ["https://eth.llamarpc.com", "https://rpc.ankr.com/eth", "https://cloudflare-eth.com"],
+        POLYGON: ["https://polygon-rpc.com", "https://rpc.ankr.com/polygon"],
+        BSC: ["https://binance.llamarpc.com", "https://bsc-dataseed.binance.org"],
+        BASE: ["https://mainnet.base.org", "https://base.llamarpc.com"],
+        ARBITRUM: ["https://arb1.arbitrum.io/rpc"],
+      };
+
+      const endpoints = rpcPools[network] || rpcPools.ETH;
+      for (const rpcUrl of endpoints) {
+        const rpcPayload = JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "eth_getBalance",
+          params: [clean, "latest"],
+        });
+
+        const rpcRes = await safeFetchJson<any>(
+          rpcUrl,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: rpcPayload,
+          },
+          2500
+        );
+
+        if (rpcRes.ok && rpcRes.data?.result) {
+          const rawHex = rpcRes.data.result;
+          const wei = BigInt(rawHex);
+          const eth = Number(wei) / 1e18;
+          balanceUsd = Math.round(eth * 2700 * 100) / 100;
+          break;
+        }
+      }
+    }
+
+    outgoing.sort((a, b) => b.amount - a.amount);
+
+    const result: AccountStateResult = {
+      address: clean,
+      network,
+      detectedAsset,
+      balance: balanceUsd,
+      balanceUsd,
+      totalReceived: Math.round(totalInflow * 100) / 100,
+      totalSent: Math.round(totalOutflow * 100) / 100,
+      txCount: outgoing.length + incoming.length,
+      outgoingTransfers: outgoing.slice(0, 10),
+      incomingTransfers: incoming.slice(0, 10),
+    };
+
+    globalTxCache.set(cacheKey, result);
+    return result;
+  }
+
+  /**
+   * Solana Live Ingestion via public JSON-RPC nodes
+   */
+  async querySolanaAccount(address: string): Promise<AccountStateResult> {
+    const cacheKey = `sol:${address}`;
+    const cached = globalTxCache.get(cacheKey);
+    if (cached) return cached;
+
+    const detectedAsset = detectCryptoAsset(address);
+    const solPriceUsd = 185;
+    let balanceSol = 0;
+    const outgoing: TransactionRecord[] = [];
+    const incoming: TransactionRecord[] = [];
+
+    const solEndpoints = [
+      "https://api.mainnet-beta.solana.com",
+      "https://rpc.ankr.com/solana",
+    ];
+
+    for (const rpcUrl of solEndpoints) {
+      const payload = JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "getBalance",
+        params: [address],
+      });
+
+      const res = await safeFetchJson<any>(
+        rpcUrl,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: payload,
+        },
+        2500
+      );
+
+      if (res.ok && res.data?.result?.value !== undefined) {
+        const lamports = Number(res.data.result.value);
+        balanceSol = lamports / 1e9;
+        break;
+      }
+    }
+
+    const balanceUsd = Math.round(balanceSol * solPriceUsd * 100) / 100;
+
+    const result: AccountStateResult = {
+      address,
+      network: "SOL",
+      detectedAsset,
+      balance: balanceSol,
+      balanceUsd,
+      totalReceived: balanceUsd,
+      totalSent: 0,
+      txCount: 0,
+      outgoingTransfers: outgoing,
+      incomingTransfers: incoming,
     };
 
     globalTxCache.set(cacheKey, result);
@@ -446,7 +764,10 @@ export class MultiChainForensicRouter {
     const net = network && network !== "UNKNOWN" ? network : detectCryptoAsset(address).network;
     if (net === "BTC") return await this.queryBitcoinAccount(address);
     if (net === "TRON") return await this.queryTronAccount(address);
-    return await this.queryEvmAccount(address, net === "POLYGON" ? "POLYGON" : "ETH");
+    if (net === "SOL") return await this.querySolanaAccount(address);
+    const evmNet =
+      net === "POLYGON" || net === "BSC" || net === "BASE" || net === "ARBITRUM" ? net : "ETH";
+    return await this.queryEvmAccount(address, evmNet);
   }
 }
 

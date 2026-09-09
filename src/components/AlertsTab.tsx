@@ -74,7 +74,7 @@ export default function AlertsTab({ traceResult, onNavigateTrace, onRequestNotic
       {/* Top Banner Header */}
       <div style={{
         background: "linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.8) 100%)",
-        border: "1px solid #1e293b",
+        border: "1px solid #1a2742",
         borderRadius: 12,
         padding: "20px 24px",
         display: "flex",
@@ -121,7 +121,7 @@ export default function AlertsTab({ traceResult, onNavigateTrace, onRequestNotic
               </div>
             </div>
             <div style={{
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: 800,
               padding: "4px 10px",
               borderRadius: 6,
@@ -138,18 +138,18 @@ export default function AlertsTab({ traceResult, onNavigateTrace, onRequestNotic
       <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 20 }}>
         {/* Left: Active Detected Patterns List */}
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em" }}>
             Detected Laundering Typologies ({patterns.length})
           </div>
 
           {patterns.length === 0 ? (
             <div style={{
-              background: "#0f172a",
-              border: "1px dashed #1e293b",
+              background: "#0b1226",
+              border: "1px dashed #1a2742",
               borderRadius: 12,
               padding: "48px 24px",
               textAlign: "center",
-              color: "#64748b",
+              color: "#94a3b8",
             }}>
               <CheckCircle2 size={36} color="#10b981" style={{ margin: "0 auto 12px" }} />
               <div style={{ fontSize: 15, fontWeight: 600, color: "#f8fafc", marginBottom: 4 }}>
@@ -174,7 +174,7 @@ export default function AlertsTab({ traceResult, onNavigateTrace, onRequestNotic
                 <div
                   key={idx}
                   style={{
-                    background: "#0f172a",
+                    background: "#0b1226",
                     border: `1px solid ${cfg.color}40`,
                     borderRadius: 12,
                     padding: "18px 20px",
@@ -196,13 +196,13 @@ export default function AlertsTab({ traceResult, onNavigateTrace, onRequestNotic
                       </div>
                       <div>
                         <div style={{ fontSize: 14, fontWeight: 700, color: "#f8fafc" }}>{cfg.label}</div>
-                        <div style={{ fontSize: 11, color: "#64748b" }}>Detected at Hop {pat.detectedAtHop}</div>
+                        <div style={{ fontSize: 12, color: "#94a3b8" }}>Detected at Hop {pat.detectedAtHop}</div>
                       </div>
                     </div>
 
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <span style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: 700,
                         padding: "3px 8px",
                         borderRadius: 6,
@@ -213,7 +213,7 @@ export default function AlertsTab({ traceResult, onNavigateTrace, onRequestNotic
                         {pat.confidence}% Confidence
                       </span>
                       <span style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: 800,
                         padding: "3px 8px",
                         borderRadius: 6,
@@ -233,13 +233,13 @@ export default function AlertsTab({ traceResult, onNavigateTrace, onRequestNotic
                   {/* Statutory Reference Tag */}
                   <div style={{
                     background: "rgba(15, 23, 42, 0.6)",
-                    border: "1px solid #1e293b",
+                    border: "1px solid #1a2742",
                     borderRadius: 6,
                     padding: "6px 12px",
                     display: "flex",
                     alignItems: "center",
                     gap: 8,
-                    fontSize: 11,
+                    fontSize: 12,
                     color: "#94a3b8",
                   }}>
                     <Lock size={12} color="#60a5fa" />
@@ -256,7 +256,7 @@ export default function AlertsTab({ traceResult, onNavigateTrace, onRequestNotic
                         border: "1px solid #334155",
                         borderRadius: 6,
                         padding: "6px 12px",
-                        fontSize: 11,
+                        fontSize: 12,
                         color: "#94a3b8",
                         cursor: "pointer",
                         display: "flex",
@@ -275,7 +275,7 @@ export default function AlertsTab({ traceResult, onNavigateTrace, onRequestNotic
                           border: "none",
                           borderRadius: 6,
                           padding: "6px 14px",
-                          fontSize: 11,
+                          fontSize: 12,
                           fontWeight: 700,
                           color: "white",
                           cursor: "pointer",
@@ -293,13 +293,13 @@ export default function AlertsTab({ traceResult, onNavigateTrace, onRequestNotic
 
         {/* Right: 6-Dimension Explainable Risk Breakdown */}
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.06em" }}>
             Explainable Risk Scoring Breakdown
           </div>
 
           <div style={{
-            background: "#0f172a",
-            border: "1px solid #1e293b",
+            background: "#0b1226",
+            border: "1px solid #1a2742",
             borderRadius: 12,
             padding: "20px",
             display: "flex",
@@ -314,7 +314,7 @@ export default function AlertsTab({ traceResult, onNavigateTrace, onRequestNotic
                       {dim.name}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ fontSize: 10, color: "#64748b" }}>Weight {Math.round(dim.weight * 100)}%</span>
+                      <span style={{ fontSize: 10, color: "#94a3b8" }}>Weight {Math.round(dim.weight * 100)}%</span>
                       <span style={{
                         fontSize: 12,
                         fontWeight: 700,
@@ -327,7 +327,7 @@ export default function AlertsTab({ traceResult, onNavigateTrace, onRequestNotic
 
                   {/* Progress Meter Bar */}
                   <div style={{
-                    width: "100%", height: 6, background: "#1e293b", borderRadius: 3, overflow: "hidden",
+                    width: "100%", height: 6, background: "#1a2742", borderRadius: 3, overflow: "hidden",
                   }}>
                     <div style={{
                       width: `${dim.score}%`,
@@ -338,13 +338,13 @@ export default function AlertsTab({ traceResult, onNavigateTrace, onRequestNotic
                     }} />
                   </div>
 
-                  <div style={{ fontSize: 11, color: "#94a3b8", lineHeight: 1.4 }}>
+                  <div style={{ fontSize: 12, color: "#94a3b8", lineHeight: 1.4 }}>
                     {dim.explanation}
                   </div>
                 </div>
               ))
             ) : (
-              <div style={{ textAlign: "center", color: "#64748b", padding: "20px 0" }}>
+              <div style={{ textAlign: "center", color: "#94a3b8", padding: "20px 0" }}>
                 Run a trace to compute multi-factor risk dimensions.
               </div>
             )}

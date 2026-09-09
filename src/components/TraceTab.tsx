@@ -54,10 +54,10 @@ const NODE_THEMES: Record<string, { bg: string; border: string; text: string; gl
   MULE_WALLET: { bg: "#1f1810", border: "#f59e0b", text: "#fde68a", glow: "rgba(245, 158, 11, 0.35)", badge: "LAYERING MULE" },
   MIXER_OBFUSCATION: { bg: "#1e122b", border: "#a855f7", text: "#e9d5ff", glow: "rgba(168, 85, 247, 0.35)", badge: "SANCTIONED MIXER" },
   BRIDGE_CONTRACT: { bg: "#101c2b", border: "#06b6d4", text: "#a5f3fc", glow: "rgba(6, 182, 212, 0.35)", badge: "CROSS-CHAIN BRIDGE" },
-  VASP_DEPOSIT_ADDRESS: { bg: "#0f172a", border: "#38bdf8", text: "#bae6fd", glow: "rgba(56, 189, 248, 0.35)", badge: "VASP DEPOSIT POOL" },
+  VASP_DEPOSIT_ADDRESS: { bg: "#0b1226", border: "#38bdf8", text: "#bae6fd", glow: "rgba(56, 189, 248, 0.35)", badge: "VASP DEPOSIT POOL" },
   VASP_HOT_WALLET: { bg: "#0d2018", border: "#10b981", text: "#a7f3d0", glow: "rgba(16, 185, 129, 0.35)", badge: "EXCHANGE HOT WALLET" },
   VASP_COLD_VAULT: { bg: "#0d2018", border: "#10b981", text: "#a7f3d0", glow: "rgba(16, 185, 129, 0.35)", badge: "EXCHANGE MASTER VAULT" },
-  UNKNOWN: { bg: "#0f172a", border: "#475569", text: "#cbd5e1", glow: "rgba(71, 85, 105, 0.2)", badge: "UNRESOLVED NODE" },
+  UNKNOWN: { bg: "#0b1226", border: "#475569", text: "#cbd5e1", glow: "rgba(71, 85, 105, 0.2)", badge: "UNRESOLVED NODE" },
 };
 
 function ForensicNodeCard({ data }: { data: ForensicNode }) {
@@ -91,7 +91,7 @@ function ForensicNodeCard({ data }: { data: ForensicNode }) {
         </div>
 
         <span style={{
-          fontSize: 9, padding: "2px 6px", borderRadius: 4,
+          fontSize: 10, padding: "2px 6px", borderRadius: 4,
           background: "rgba(14, 165, 233, 0.15)", color: "#38bdf8",
           border: "1px solid rgba(14, 165, 233, 0.3)", fontWeight: 800,
         }}>
@@ -112,13 +112,13 @@ function ForensicNodeCard({ data }: { data: ForensicNode }) {
       {/* Metrics Row */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 8 }}>
         <div>
-          <div style={{ fontSize: 9, color: "#64748b", textTransform: "uppercase", fontWeight: 700 }}>Volume Tracked</div>
+          <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", fontWeight: 700 }}>Volume Tracked</div>
           <div style={{ fontSize: 12, fontWeight: 800, color: "#10b981" }}>
             ${data.totalInflowUsd.toLocaleString()}
           </div>
         </div>
         <div>
-          <div style={{ fontSize: 9, color: "#64748b", textTransform: "uppercase", fontWeight: 700 }}>Current Balance</div>
+          <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", fontWeight: 700 }}>Current Balance</div>
           <div style={{ fontSize: 12, fontWeight: 800, color: theme.text }}>
             ${data.balanceUsd.toLocaleString()}
           </div>
@@ -229,6 +229,10 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
       edgeList = edgeList.filter(e => focusEdgeSet.has(e.id));
     }
 
+    // Strictly ensure both source and target nodes exist in the currently visible node set
+    const visibleNodeIds = new Set(filteredNodes.map(n => n.id));
+    edgeList = edgeList.filter(e => visibleNodeIds.has(e.source) && visibleNodeIds.has(e.target));
+
     const rfEdges: Edge[] = edgeList.map((edge, idx) => ({
       id: `rf-${idx}-${edge.source.slice(0, 6)}-${edge.target.slice(0, 6)}`,
       source: edge.source,
@@ -240,7 +244,7 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
         strokeWidth: isFocusPathActive ? 3 : 2,
       },
       labelStyle: { fill: "#f8fafc", fontSize: 10, fontWeight: 700 },
-      labelBgStyle: { fill: "#0f172a", fillOpacity: 0.95, stroke: "#334155", strokeWidth: 1, rx: 4 },
+      labelBgStyle: { fill: "#0b1226", fillOpacity: 0.95, stroke: "#334155", strokeWidth: 1, rx: 4 },
       markerEnd: {
         type: MarkerType.ArrowClosed,
         color: edge.isSweeping ? "#10b981" : edge.isBridgeTx ? "#06b6d4" : "#38bdf8",
@@ -301,8 +305,8 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
         justifyContent: "center",
         height: "calc(100vh - 145px)",
         gap: 16,
-        color: "#64748b",
-        background: "#0a0f1d",
+        color: "#94a3b8",
+        background: "#0b1226",
       }}>
         <div style={{
           width: 60, height: 60, borderRadius: 16,
@@ -323,13 +327,13 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
   }
 
   return (
-    <div style={{ position: "relative", height: "calc(100vh - 145px)", background: "#0a0f1d", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+    <div style={{ position: "relative", height: "calc(100vh - 145px)", background: "#0b1226", overflow: "hidden", display: "flex", flexDirection: "column" }}>
 
       {/* Top Police Command HUD Ribbon with Separated Metrics */}
       {traceResult && (
         <div style={{
           background: "rgba(15, 23, 42, 0.95)",
-          borderBottom: "1px solid #1e293b",
+          borderBottom: "1px solid #1a2742",
           padding: "12px 24px",
           display: "flex",
           alignItems: "center",
@@ -339,7 +343,7 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
           <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
             {/* Metric 1: Independent VASP Attribution */}
             <div>
-              <div style={{ fontSize: 9, color: "#94a3b8", textTransform: "uppercase", fontWeight: 700 }}>
+              <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", fontWeight: 700 }}>
                 Attributed Destination VASP
               </div>
               <div style={{ fontSize: 14, fontWeight: 800, color: "#38bdf8", display: "flex", alignItems: "center", gap: 8 }}>
@@ -351,7 +355,7 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
                   {vasp?.confidenceScore || 90}% Confidence
                 </span>
                 {vasp?.fiuRegistered && (
-                  <span style={{ fontSize: 9, padding: "2px 6px", borderRadius: 4, background: "rgba(16,185,129,0.15)", color: "#34d399", border: "1px solid rgba(16,185,129,0.3)", fontWeight: 700 }}>
+                  <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, background: "rgba(16,185,129,0.15)", color: "#34d399", border: "1px solid rgba(16,185,129,0.3)", fontWeight: 700 }}>
                     FIU-IND
                   </span>
                 )}
@@ -362,7 +366,7 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
 
             {/* Metric 2: Independent Criminal / Laundering Risk */}
             <div>
-              <div style={{ fontSize: 9, color: "#94a3b8", textTransform: "uppercase", fontWeight: 700 }}>
+              <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", fontWeight: 700 }}>
                 Criminal Laundering Risk
               </div>
               <div style={{
@@ -385,9 +389,9 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
 
             {/* Volume Tracked */}
             <div>
-              <div style={{ fontSize: 9, color: "#94a3b8", textTransform: "uppercase", fontWeight: 700 }}>Total Volume Tracked</div>
+              <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", fontWeight: 700 }}>Total Volume Tracked</div>
               <div style={{ fontSize: 14, fontWeight: 800, color: "#10b981" }}>
-                ${(traceResult.totalVolumeTrackedUsd || 0).toLocaleString()} <span style={{ fontSize: 11, color: "#64748b" }}>(₹{((traceResult.totalVolumeTrackedUsd || 0) * 85).toLocaleString("en-IN")})</span>
+                ${(traceResult.totalVolumeTrackedUsd || 0).toLocaleString()} <span style={{ fontSize: 12, color: "#94a3b8" }}>(₹{((traceResult.totalVolumeTrackedUsd || 0) * 85).toLocaleString("en-IN")})</span>
               </div>
             </div>
 
@@ -403,7 +407,7 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
                   border: isFocusPathActive ? "none" : "1px solid #334155",
                   borderRadius: 8,
                   padding: "6px 12px",
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: 700,
                   color: isFocusPathActive ? "white" : "#cbd5e1",
                   cursor: "pointer",
@@ -420,11 +424,11 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
                 value={roleFilter}
                 onChange={(e) => setRoleFilter(e.target.value as RoleFilter)}
                 style={{
-                  background: "#0f172a",
+                  background: "#0b1226",
                   border: "1px solid #334155",
                   borderRadius: 8,
                   padding: "6px 10px",
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: 600,
                   color: "#38bdf8",
                   cursor: "pointer",
@@ -451,7 +455,7 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
                 border: "none",
                 borderRadius: 8,
                 padding: "7px 14px",
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: 700,
                 color: "white",
                 cursor: isGeneratingAi ? "not-allowed" : "pointer",
@@ -468,11 +472,11 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
                 onClick={onNavigateDossier}
                 suppressHydrationWarning
                 style={{
-                  background: "#1e293b",
+                  background: "#1a2742",
                   border: "1px solid #334155",
                   borderRadius: 8,
                   padding: "7px 14px",
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: 700,
                   color: "#38bdf8",
                   cursor: "pointer",
@@ -493,7 +497,7 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
                 border: "none",
                 borderRadius: 8,
                 padding: "7px 16px",
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: 700,
                 color: "white",
                 cursor: "pointer",
@@ -513,7 +517,7 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
       {traceResult && (
         <div style={{
           background: "rgba(10, 15, 29, 0.98)",
-          borderBottom: "1px solid #1e293b",
+          borderBottom: "1px solid #1a2742",
           padding: "8px 24px",
           display: "flex",
           alignItems: "center",
@@ -528,7 +532,7 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
               Serve Section 94 BNSS requisition to <strong style={{ color: "#38bdf8" }}>{vasp?.complianceEmail || "compliance desk"}</strong> immediately to freeze account UIDs prior to fiat withdrawal.
             </span>
           </div>
-          <div style={{ fontSize: 11, color: "#64748b" }}>
+          <div style={{ fontSize: 12, color: "#94a3b8" }}>
             Click any node or transaction arrow on the canvas to inspect full forensic receipt.
           </div>
         </div>
@@ -576,11 +580,11 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
           minZoom={0.2}
           maxZoom={1.5}
         >
-          <Background color="#1e293b" gap={24} size={1} variant={BackgroundVariant.Dots} />
-          <Controls style={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 8 }} />
+          <Background color="#1a2742" gap={24} size={1} variant={BackgroundVariant.Dots} />
+          <Controls style={{ background: "#0b1226", border: "1px solid #334155", borderRadius: 8 }} />
           <MiniMap
             nodeColor={(n) => (NODE_THEMES[n.data?.entityType]?.border || "#475569")}
-            style={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 8 }}
+            style={{ background: "#0b1226", border: "1px solid #334155", borderRadius: 8 }}
           />
         </ReactFlow>
       </div>
@@ -628,23 +632,23 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
           <div>
             <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", fontWeight: 700 }}>Full Wallet Address</div>
             <div style={{
-              fontFamily: "monospace", fontSize: 11, color: "#cbd5e1",
-              background: "#0a0f1d", padding: "8px 10px", borderRadius: 6,
-              border: "1px solid #1e293b", marginTop: 4, wordBreak: "break-all",
+              fontFamily: "monospace", fontSize: 12, color: "#cbd5e1",
+              background: "#0b1226", padding: "8px 10px", borderRadius: 6,
+              border: "1px solid #1a2742", marginTop: 4, wordBreak: "break-all",
             }}>
               {selectedNode.fullAddress}
             </div>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <div style={{ background: "#0a0f1d", padding: "10px", borderRadius: 8, border: "1px solid #1e293b" }}>
-              <div style={{ fontSize: 9, color: "#64748b", textTransform: "uppercase", fontWeight: 700 }}>Tracked Inflow</div>
+            <div style={{ background: "#0b1226", padding: "10px", borderRadius: 8, border: "1px solid #1a2742" }}>
+              <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", fontWeight: 700 }}>Tracked Inflow</div>
               <div style={{ fontSize: 13, fontWeight: 800, color: "#10b981" }}>
                 ${selectedNode.totalInflowUsd.toLocaleString()}
               </div>
             </div>
-            <div style={{ background: "#0a0f1d", padding: "10px", borderRadius: 8, border: "1px solid #1e293b" }}>
-              <div style={{ fontSize: 9, color: "#64748b", textTransform: "uppercase", fontWeight: 700 }}>Current Balance</div>
+            <div style={{ background: "#0b1226", padding: "10px", borderRadius: 8, border: "1px solid #1a2742" }}>
+              <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", fontWeight: 700 }}>Current Balance</div>
               <div style={{ fontSize: 13, fontWeight: 800, color: "#f8fafc" }}>
                 ${selectedNode.balanceUsd.toLocaleString()}
               </div>
@@ -658,10 +662,10 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
               borderRadius: 8,
               padding: "12px",
             }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#10b981", marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#10b981", marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
                 <Zap size={13} /> 2-Step VASP Sweeping Confirmed
               </div>
-              <div style={{ fontSize: 11, color: "#cbd5e1", lineHeight: 1.4 }}>
+              <div style={{ fontSize: 12, color: "#cbd5e1", lineHeight: 1.4 }}>
                 Exchange: <strong>{selectedNode.sweepDetails.exchangeName}</strong><br />
                 Micro-Gas Refill: <strong>{selectedNode.sweepDetails.gasAmount || "15 TRX"}</strong><br />
                 Swept Ratio: <strong>{selectedNode.sweepDetails.sweptPercentage}%</strong><br />
@@ -677,11 +681,11 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
                 target="_blank"
                 rel="noreferrer"
                 style={{
-                  background: "#0a0f1d",
+                  background: "#0b1226",
                   border: "1px solid #334155",
                   borderRadius: 8,
                   padding: "8px 12px",
-                  fontSize: 11,
+                  fontSize: 12,
                   color: "#38bdf8",
                   textDecoration: "none",
                   display: "flex",
@@ -747,25 +751,25 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
           </div>
 
           <div>
-            <div style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", fontWeight: 700 }}>Transaction Hash</div>
+            <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", fontWeight: 700 }}>Transaction Hash</div>
             <div style={{
-              fontFamily: "monospace", fontSize: 11, color: "#38bdf8",
-              background: "#0a0f1d", padding: "8px 10px", borderRadius: 6,
-              border: "1px solid #1e293b", marginTop: 4, wordBreak: "break-all",
+              fontFamily: "monospace", fontSize: 12, color: "#38bdf8",
+              background: "#0b1226", padding: "8px 10px", borderRadius: 6,
+              border: "1px solid #1a2742", marginTop: 4, wordBreak: "break-all",
             }}>
               {selectedEdge.txHash}
             </div>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            <div style={{ background: "#0a0f1d", padding: "8px 10px", borderRadius: 6, border: "1px solid #1e293b" }}>
-              <div style={{ fontSize: 9, color: "#64748b" }}>AMOUNT TRANSFERRED</div>
+            <div style={{ background: "#0b1226", padding: "8px 10px", borderRadius: 6, border: "1px solid #1a2742" }}>
+              <div style={{ fontSize: 10, color: "#94a3b8" }}>AMOUNT TRANSFERRED</div>
               <div style={{ fontSize: 13, fontWeight: 800, color: "#10b981" }}>
                 ${selectedEdge.amount.toLocaleString()} {selectedEdge.tokenSymbol}
               </div>
             </div>
-            <div style={{ background: "#0a0f1d", padding: "8px 10px", borderRadius: 6, border: "1px solid #1e293b" }}>
-              <div style={{ fontSize: 9, color: "#64748b" }}>BLOCK / NETWORK</div>
+            <div style={{ background: "#0b1226", padding: "8px 10px", borderRadius: 6, border: "1px solid #1a2742" }}>
+              <div style={{ fontSize: 10, color: "#94a3b8" }}>BLOCK / NETWORK</div>
               <div style={{ fontSize: 12, fontWeight: 700, color: "#f8fafc" }}>
                 {selectedEdge.network} {selectedEdge.blockNumber ? `(#${selectedEdge.blockNumber})` : ""}
               </div>
@@ -773,14 +777,14 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
           </div>
 
           <div>
-            <div style={{ fontSize: 10, color: "#64748b", textTransform: "uppercase", fontWeight: 700 }}>Sender ➔ Recipient</div>
-            <div style={{ fontSize: 11, color: "#cbd5e1", marginTop: 2, fontFamily: "monospace" }}>
+            <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", fontWeight: 700 }}>Sender ➔ Recipient</div>
+            <div style={{ fontSize: 12, color: "#cbd5e1", marginTop: 2, fontFamily: "monospace" }}>
               From: {selectedEdge.source.slice(0, 10)}...{selectedEdge.source.slice(-6)}<br />
               To: {selectedEdge.target.slice(0, 10)}...{selectedEdge.target.slice(-6)}
             </div>
           </div>
 
-          <div style={{ fontSize: 11, color: "#94a3b8" }}>
+          <div style={{ fontSize: 12, color: "#94a3b8" }}>
             <strong>Timestamp UTC:</strong> {selectedEdge.timestamp}<br />
             <strong>Verification Source:</strong> {selectedEdge.apiSource || "Blockchain Node Ingestion"}
           </div>
@@ -794,7 +798,7 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
                 background: "linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%)",
                 borderRadius: 8,
                 padding: "8px 12px",
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: 700,
                 color: "white",
                 textDecoration: "none",

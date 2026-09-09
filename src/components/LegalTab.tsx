@@ -87,11 +87,11 @@ export default function LegalTab({ traceResult }: LegalTabProps) {
     return (
       <div style={{
         display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-        height: "60vh", gap: 14, color: "#64748b",
+        height: "60vh", gap: 14, color: "#94a3b8",
       }}>
         <FileText size={48} color="#334155" />
         <div style={{ fontSize: 16, fontWeight: 700, color: "#94a3b8" }}>No Forensic Trace Active</div>
-        <div style={{ fontSize: 13, color: "#64748b" }}>
+        <div style={{ fontSize: 13, color: "#94a3b8" }}>
           Execute a trace from the Command Overview or Fund Flow Graph to generate court-admissible statutory notices.
         </div>
       </div>
@@ -102,7 +102,7 @@ export default function LegalTab({ traceResult }: LegalTabProps) {
     <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: 20, animation: "fadeIn 0.3s ease" }}>
       {/* Top Action Header */}
       <div style={{
-        background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
+        background: "linear-gradient(135deg, #0b1226 0%, #1a2742 100%)",
         border: "1px solid #334155",
         borderRadius: 12,
         padding: "20px 24px",
@@ -158,7 +158,7 @@ export default function LegalTab({ traceResult }: LegalTabProps) {
                 suppressHydrationWarning
                 onClick={copyToClipboard}
                 style={{
-                  background: "#0f172a",
+                  background: "#0b1226",
                   border: "1px solid #334155",
                   borderRadius: 8,
                   padding: "7px 14px",
@@ -178,7 +178,7 @@ export default function LegalTab({ traceResult }: LegalTabProps) {
                 suppressHydrationWarning
                 onClick={handlePrint}
                 style={{
-                  background: "#0f172a",
+                  background: "#0b1226",
                   border: "1px solid #334155",
                   borderRadius: 8,
                   padding: "7px 14px",
@@ -201,7 +201,7 @@ export default function LegalTab({ traceResult }: LegalTabProps) {
             ref={printRef}
             style={{
               background: "#0c1322",
-              border: "1.5px solid #1e293b",
+              border: "1.5px solid #1a2742",
               borderRadius: 12,
               padding: "36px 40px",
               color: "#e2e8f0",
@@ -215,7 +215,7 @@ export default function LegalTab({ traceResult }: LegalTabProps) {
               <div style={{ fontSize: 13, fontWeight: 800, color: "#94a3b8", letterSpacing: "0.1em", textTransform: "uppercase" }}>
                 INDIAN CYBER CRIME COORDINATION CENTRE (I4C) · CIS DIVISION
               </div>
-              <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
+              <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 2 }}>
                 MINISTRY OF HOME AFFAIRS · GOVERNMENT OF INDIA
               </div>
               <div style={{ fontSize: 18, fontWeight: 800, color: "#f8fafc", marginTop: 12, letterSpacing: "-0.01em" }}>
@@ -229,29 +229,29 @@ export default function LegalTab({ traceResult }: LegalTabProps) {
             {/* Meta Row */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24, fontSize: 12 }}>
               <div>
-                <span style={{ color: "#64748b" }}>Notice ID:</span> <strong>{notice.noticeId}</strong><br />
-                <span style={{ color: "#64748b" }}>Date of Issuance:</span> <strong>{notice.date}</strong><br />
-                <span style={{ color: "#64748b" }}>CFCFRMS / 1930 Ref:</span> <strong>{notice.complaintDetails.ackNumber1930}</strong>
+                <span style={{ color: "#94a3b8" }}>Notice ID:</span> <strong>{notice.noticeId}</strong><br />
+                <span style={{ color: "#94a3b8" }}>Date of Issuance:</span> <strong>{notice.date}</strong><br />
+                <span style={{ color: "#94a3b8" }}>CFCFRMS / 1930 Ref:</span> <strong>{notice.complaintDetails.ackNumber1930}</strong>
               </div>
               <div style={{ textAlign: "right" }}>
-                <span style={{ color: "#64748b" }}>Recipient VASP:</span> <strong>{notice.vaspRecipient.name}</strong><br />
-                <span style={{ color: "#64748b" }}>Legal Entity:</span> {notice.vaspRecipient.legalEntityName}<br />
-                <span style={{ color: "#64748b" }}>FIU-IND Registration:</span> <strong style={{ color: "#10b981" }}>{notice.vaspRecipient.fiuNumber || "Registered"}</strong>
+                <span style={{ color: "#94a3b8" }}>Recipient VASP:</span> <strong>{notice.vaspRecipient.name}</strong><br />
+                <span style={{ color: "#94a3b8" }}>Legal Entity:</span> {notice.vaspRecipient.legalEntityName}<br />
+                <span style={{ color: "#94a3b8" }}>FIU-IND Registration:</span> <strong style={{ color: "#10b981" }}>{notice.vaspRecipient.fiuNumber || "Registered"}</strong>
               </div>
             </div>
 
             {/* Case Background & Victim Particulars */}
             <div style={{ marginBottom: 20, fontSize: 13 }}>
               <strong>1. Case Particulars &amp; Crime Ingress:</strong><br />
-              A formal complaint has been registered by victim <strong>{notice.complaintDetails.victimName}</strong> regarding stolen funds amounting to <strong>₹{notice.complaintDetails.stolenAmountInr.toLocaleString("en-IN")} ({notice.complaintDetails.stolenAmountUsdt.toLocaleString()} USDT)</strong>. Initial funds were traced to suspect ingress address <code style={{ color: "#38bdf8", background: "#0a0f1d", padding: "2px 6px", borderRadius: 4 }}>{notice.complaintDetails.suspectInitialAddress}</code>.
+              A formal complaint has been registered by victim <strong>{notice.complaintDetails.victimName}</strong> regarding stolen funds amounting to <strong>₹{notice.complaintDetails.stolenAmountInr.toLocaleString("en-IN")} ({notice.complaintDetails.stolenAmountUsdt.toLocaleString()} USDT)</strong>. Initial funds were traced to suspect ingress address <code style={{ color: "#38bdf8", background: "#0b1226", padding: "2px 6px", borderRadius: 4 }}>{notice.complaintDetails.suspectInitialAddress}</code>.
             </div>
 
             {/* Forensic Attribution Path */}
             <div style={{ marginBottom: 20, fontSize: 13 }}>
               <strong>2. Automated Multi-Hop On-Chain Attribution Trail:</strong><br />
               <div style={{
-                background: "#0a0f1d", border: "1px solid #1e293b",
-                borderRadius: 8, padding: "12px 16px", marginTop: 8, fontFamily: "monospace", fontSize: 11, color: "#93c5fd",
+                background: "#0b1226", border: "1px solid #1a2742",
+                borderRadius: 8, padding: "12px 16px", marginTop: 8, fontFamily: "monospace", fontSize: 12, color: "#93c5fd",
                 wordBreak: "break-all", lineHeight: 1.8,
               }}>
                 {notice.forensicTrail.hopPath.join("  ──>[Hop]──>  ")}
@@ -281,7 +281,7 @@ export default function LegalTab({ traceResult }: LegalTabProps) {
               borderRadius: 8,
               padding: "16px",
               marginBottom: 24,
-              fontSize: 11,
+              fontSize: 12,
             }}>
               <div style={{ fontWeight: 700, color: "#38bdf8", marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
                 <Lock size={12} /> Section 63 Bharatiya Sakshya Adhiniyam (BSA 2023) Electronic Hash Certificate
@@ -289,7 +289,7 @@ export default function LegalTab({ traceResult }: LegalTabProps) {
               <div style={{ fontFamily: "monospace", fontSize: 10, color: "#94a3b8", wordBreak: "break-all" }}>
                 SHA-256 State Seal: {notice.cryptographicVerification.sha256Hash}
               </div>
-              <div style={{ color: "#cbd5e1", marginTop: 4, fontSize: 11 }}>
+              <div style={{ color: "#cbd5e1", marginTop: 4, fontSize: 12 }}>
                 {notice.cryptographicVerification.bsaSection63Clause}
               </div>
             </div>
@@ -310,7 +310,7 @@ export default function LegalTab({ traceResult }: LegalTabProps) {
         </div>
       ) : (
         <div style={{
-          background: "#0f172a",
+          background: "#0b1226",
           border: "1px dashed #334155",
           borderRadius: 12,
           padding: "48px 24px",

@@ -16,6 +16,7 @@
 # Misc
 .DS_Store
 *.pem
+~$*
 
 # Local env files - MANDATORY SECURITY
 .env

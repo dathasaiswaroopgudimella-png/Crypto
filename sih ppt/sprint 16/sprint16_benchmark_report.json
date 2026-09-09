@@ -1,0 +1,365 @@
+{
+  "timestamp": "2026-09-09T15:07:55Z",
+  "release_status": "SPRINT 16 \u2014 ENGINEERING IMPLEMENTATION COMPLETE / PRODUCTION SECURITY CLOSURE PENDING",
+  "environment": {
+    "platform": "Windows-10-10.0.26200-SP0",
+    "python_version": "3.10.11 (tags/v3.10.11:7d4cc5a, Apr  5 2023, 00:38:17) [MSC v.1929 64 bit (AMD64)]"
+  },
+  "benchmarks": {
+    "T16.1_isolation": {
+      "gate": "T16.1",
+      "name": "Isolated Decryption Boundary",
+      "elapsed_seconds": 0.09980500000528991,
+      "gvisor_available": false,
+      "firecracker_available": false,
+      "refusal_tested_without_isolation": true,
+      "fake_runtime_rejected_in_production": true,
+      "active_boundary": "none",
+      "zero_copy_decryption_verified": true,
+      "output_length": 21,
+      "status": "PARTIAL (DEV_PROCESS_ISOLATION -- HOST LACKS KVM/RUNSC; EXTERNAL GATE EXT-05 REQUIRED)"
+    },
+    "T16.2_key_ttl": {
+      "gate": "T16.2",
+      "name": "24h Session-Key TTL",
+      "n_trials": 1000,
+      "elapsed_seconds": 0.026771400007419288,
+      "fresh_pass_rate": 1.0,
+      "boundary_pass_rate": 1.0,
+      "expired_rejection_rate": 1.0,
+      "overall_accuracy": 1.0,
+      "status": "PASS"
+    },
+    "T16.3_memory_forensics": {
+      "gate": "T16.3",
+      "name": "RAM Zero-Fill Forensics",
+      "iterations": 3,
+      "elapsed_seconds": 4.797357799950987,
+      "total_secret_bytes_tested": 164,
+      "total_recovered_plaintext_bytes": 0,
+      "zero_leakage_verified": true,
+      "status": "PASS"
+    },
+    "T16.4_argon2id": {
+      "gate": "T16.4",
+      "name": "Argon2id Key Derivation",
+      "elapsed_seconds": 0.7574739999836311,
+      "derivation_time_seconds": 0.15510630002245307,
+      "parameters": {
+        "algorithm": "Argon2id",
+        "version": 19,
+        "memory_cost_kib": 65536,
+        "time_cost_iterations": 3,
+        "parallelism_lanes": 4,
+        "salt_len_bytes": 16,
+        "key_len_bytes": 32,
+        "rationale": "RFC 9106 \u00a74 recommended parameters for memory-hard KDF resisting GPU/ASIC brute-force attacks against long-lived vault recovery passphrases: m=64MiB (65536 KiB), t=3, p=4, tag=32B, salt=16B."
+      },
+      "deterministic": true,
+      "phc_verification_positive": true,
+      "phc_verification_negative": true,
+      "key_hex_sample": "8e703c5edf6a0bb6...",
+      "status": "PASS"
+    },
+    "T16.5_unlinkability": {
+      "gate": "T16.5",
+      "name": "Voice Unlinkability Evaluation (Geometric + Acoustic Pipeline + Real Audio DSP)",
+      "framing": "Chronis does not possess, and does not claim, a cryptographic or information-theoretic proof that voice-transformation output is irreversible. No such proof exists in the field for any current voice-anonymization technique \u2014 this is a known open research problem, not a Chronis-specific gap. What can be built, and now is, is empirical resistance testing under a stated and re-testable threat model, following the VoicePrivacy Challenge methodology (the field's own standard benchmark): an automatic speaker verification (ASV) attacker attempts re-identification of a transformed voice at three knowledge levels \u2014 ignorant (no knowledge a transform was applied), semi-informed (knows a transform exists, not its parameters), fully-informed (knows the exact transform and parameters). Resistance is reported as Equal Error Rate (EER) per attacker level, published in the relevant module's README, and re-measured as a standing regression check on every change to the voice-processing pipeline \u2014 because resistance against an improving attacker is a moving target, not a fixed, provable property. Any internal or external communication that describes voice transformation as 'irreversible' or 'unlinkable' without qualifying it against a stated threat model and EER number is overstating the system's actual epistemic status \u2014 the same discipline Part 5.11 already applies to the 0.15 ambiguity threshold.",
+      "elapsed_seconds": 3.2829567999579012,
+      "monotonicity_satisfied": true,
+      "geometric_corpus": {
+        "monotonicity_satisfied": true,
+        "results": {
+          "ignorant": {
+            "eer": 0.5296,
+            "threshold": -0.0034,
+            "auc": 0.4582,
+            "confidence_interval_95": [
+              0.4938,
+              0.559
+            ],
+            "n_genuine": 270,
+            "n_impostor": 1305
+          },
+          "semi_informed": {
+            "eer": 0.2222,
+            "threshold": 0.0988,
+            "auc": 0.851,
+            "confidence_interval_95": [
+              0.1925,
+              0.252
+            ],
+            "n_genuine": 270,
+            "n_impostor": 1305
+          },
+          "fully_informed": {
+            "eer": 0.1258,
+            "threshold": 0.138,
+            "auc": 0.9405,
+            "confidence_interval_95": [
+              0.1039,
+              0.1484
+            ],
+            "n_genuine": 270,
+            "n_impostor": 1305
+          }
+        }
+      },
+      "acoustic_pipeline_corpus": {
+        "pipeline": "chronis_vocal_tract_f0_vtln",
+        "monotonicity_satisfied": true,
+        "results": {
+          "ignorant": {
+            "eer": 0.5194,
+            "threshold": -0.0035,
+            "auc": 0.4738,
+            "confidence_interval_95": [
+              0.4889,
+              0.5522
+            ],
+            "n_genuine": 270,
+            "n_impostor": 1305
+          },
+          "semi_informed": {
+            "eer": 0.1895,
+            "threshold": 0.1132,
+            "auc": 0.8871,
+            "confidence_interval_95": [
+              0.165,
+              0.2185
+            ],
+            "n_genuine": 270,
+            "n_impostor": 1305
+          },
+          "fully_informed": {
+            "eer": 0.1002,
+            "threshold": 0.1677,
+            "auc": 0.967,
+            "confidence_interval_95": [
+              0.0821,
+              0.1179
+            ],
+            "n_genuine": 270,
+            "n_impostor": 1305
+          }
+        }
+      },
+      "real_audio_dsp_pipeline": {
+        "pipeline": "chronis_real_audio_pipeline",
+        "description": "16kHz PCM waveform \u2192 80Hz Butterworth HPF \u2192 DC removal \u2192 RMS norm -20dBFS \u2192 500ms sliding windows (250ms hop) \u2192 LPC formant extraction F1-F4 \u2192 autocorrelation F0 pitch contour \u2192 jitter/shimmer/HNR \u2192 MFCC spectral filterbank \u2192 session-keyed orthogonal rotation + VTLN + pitch shift \u2192 ASV evaluation",
+        "monotonicity_satisfied": true,
+        "results": {
+          "ignorant": {
+            "eer": 0.45925925925925926,
+            "threshold": 0.03218842636823819,
+            "auc": 0.5170370370370371,
+            "confidence_interval_95": [
+              0.3759259259259259,
+              0.6
+            ],
+            "confidence_interval_95_auc": [
+              0.4036975308641976,
+              0.6394444444444443
+            ],
+            "bootstrap_percentiles": {
+              "p0.5": 0.36848148148148147,
+              "p1": 0.3721481481481482,
+              "p2.5": 0.3759259259259259,
+              "p5": 0.3920370370370371,
+              "p10": 0.4,
+              "p25": 0.43148148148148147,
+              "p50": 0.46296296296296297,
+              "p75": 0.5018518518518518,
+              "p90": 0.5648148148148149,
+              "p95": 0.5787037037037036,
+              "p97.5": 0.6,
+              "p99": 0.6241481481481481,
+              "p99.5": 0.6278148148148148
+            },
+            "bootstrap_percentiles_auc": {
+              "p0.5": 0.3824617283950617,
+              "p1": 0.38319506172839507,
+              "p2.5": 0.4036975308641975,
+              "p5": 0.41328395061728396,
+              "p10": 0.42962962962962964,
+              "p25": 0.4884567901234568,
+              "p50": 0.5312345679012346,
+              "p75": 0.562962962962963,
+              "p90": 0.5809135802469136,
+              "p95": 0.6031728395061728,
+              "p97.5": 0.6394444444444443,
+              "p99": 0.6493851851851852,
+              "p99.5": 0.6495074074074074
+            },
+            "bootstrap_mean": 0.4672037037037037,
+            "bootstrap_std_err": 0.05916231724123573,
+            "n_genuine": 30,
+            "n_impostor": 135
+          },
+          "semi_informed": {
+            "eer": 0.337037037037037,
+            "threshold": 0.6160609042912639,
+            "auc": 0.7380246913580247,
+            "confidence_interval_95": [
+              0.2207870370370371,
+              0.43518518518518523
+            ],
+            "confidence_interval_95_auc": [
+              0.6518518518518519,
+              0.8506790123456789
+            ],
+            "bootstrap_percentiles": {
+              "p0.5": 0.20183333333333334,
+              "p1": 0.2036666666666667,
+              "p2.5": 0.22078703703703703,
+              "p5": 0.2351851851851852,
+              "p10": 0.2659259259259259,
+              "p25": 0.29814814814814816,
+              "p50": 0.3333333333333333,
+              "p75": 0.36851851851851847,
+              "p90": 0.4037037037037037,
+              "p95": 0.43166666666666664,
+              "p97.5": 0.43518518518518523,
+              "p99": 0.45009259259259266,
+              "p99.5": 0.4546759259259259
+            },
+            "bootstrap_percentiles_auc": {
+              "p0.5": 0.5987913580246913,
+              "p1": 0.6084469135802469,
+              "p2.5": 0.6518518518518519,
+              "p5": 0.6574320987654321,
+              "p10": 0.6664197530864198,
+              "p25": 0.6935802469135802,
+              "p50": 0.7362962962962962,
+              "p75": 0.7822222222222222,
+              "p90": 0.8077037037037037,
+              "p95": 0.8150123456790123,
+              "p97.5": 0.8506790123456789,
+              "p99": 0.8567950617283951,
+              "p99.5": 0.8570395061728395
+            },
+            "bootstrap_mean": 0.3339259259259259,
+            "bootstrap_std_err": 0.058812664341220136,
+            "n_genuine": 30,
+            "n_impostor": 135
+          },
+          "fully_informed": {
+            "eer": 0.32592592592592595,
+            "threshold": 0.8798031395045066,
+            "auc": 0.8032098765432099,
+            "confidence_interval_95": [
+              0.1648148148148148,
+              0.4371296296296296
+            ],
+            "confidence_interval_95_auc": [
+              0.6781296296296296,
+              0.9022469135802469
+            ],
+            "bootstrap_percentiles": {
+              "p0.5": 0.1648148148148148,
+              "p1": 0.1648148148148148,
+              "p2.5": 0.1648148148148148,
+              "p5": 0.19490740740740742,
+              "p10": 0.2253703703703704,
+              "p25": 0.262037037037037,
+              "p50": 0.3018518518518518,
+              "p75": 0.3611111111111111,
+              "p90": 0.4037037037037037,
+              "p95": 0.43518518518518523,
+              "p97.5": 0.4371296296296296,
+              "p99": 0.4676851851851857,
+              "p99.5": 0.5181018518518514
+            },
+            "bootstrap_percentiles_auc": {
+              "p0.5": 0.6454123456790123,
+              "p1": 0.6718123456790123,
+              "p2.5": 0.6781296296296296,
+              "p5": 0.7162716049382716,
+              "p10": 0.7295802469135803,
+              "p25": 0.7651234567901235,
+              "p50": 0.8045679012345679,
+              "p75": 0.8493827160493828,
+              "p90": 0.8773333333333333,
+              "p95": 0.8971358024691358,
+              "p97.5": 0.9022469135802469,
+              "p99": 0.9091975308641976,
+              "p99.5": 0.912253086419753
+            },
+            "bootstrap_mean": 0.3077962962962963,
+            "bootstrap_std_err": 0.07453341259867334,
+            "n_genuine": 30,
+            "n_impostor": 135
+          }
+        }
+      },
+      "results": {
+        "ignorant": {
+          "eer": 0.5296,
+          "threshold": -0.0034,
+          "auc": 0.4582,
+          "confidence_interval_95": [
+            0.4938,
+            0.559
+          ],
+          "n_genuine": 270,
+          "n_impostor": 1305
+        },
+        "semi_informed": {
+          "eer": 0.2222,
+          "threshold": 0.0988,
+          "auc": 0.851,
+          "confidence_interval_95": [
+            0.1925,
+            0.252
+          ],
+          "n_genuine": 270,
+          "n_impostor": 1305
+        },
+        "fully_informed": {
+          "eer": 0.1258,
+          "threshold": 0.138,
+          "auc": 0.9405,
+          "confidence_interval_95": [
+            0.1039,
+            0.1484
+          ],
+          "n_genuine": 270,
+          "n_impostor": 1305
+        }
+      },
+      "status": "PASS"
+    },
+    "T16.6_bystander_ttl": {
+      "gate": "T16.6",
+      "name": "Bystander Biometric TTL & Purge",
+      "n_records_tested": 500,
+      "purged_records": 250,
+      "remaining_active_records": 250,
+      "alternate_store_leaks": 0,
+      "read_time_gating_verified": true,
+      "elapsed_seconds": 0.003939899965189397,
+      "status": "PASS"
+    },
+    "T16.7_license_gate": {
+      "gate": "T16.7",
+      "name": "License Compatibility CI Gate",
+      "manifest_path": "licenses_manifest.json",
+      "total_packages_checked": 7,
+      "clean_packages": [
+        "openai-whisper",
+        "pyannote.audio",
+        "hdbscan",
+        "bertopic",
+        "statsmodels"
+      ],
+      "blocking_violations": {
+        "opensmile": "noncommercial_restricted",
+        "bocd": "unknown_unverified"
+      },
+      "gate_blocks_on_noncompliant": true,
+      "elapsed_seconds": 0.0011514999205246568,
+      "status": "PASS"
+    }
+  },
+  "total_elapsed_seconds": 8.973307847976685
+}

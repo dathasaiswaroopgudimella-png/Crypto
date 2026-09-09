@@ -51,7 +51,7 @@ export const KNOWN_VASP_REGISTRY: KnownVaspRecord[] = [
     freezeRequestEmail: "legal@coindcx.com",
     hotWallets: [
       { address: "0x4e9ce36e442e55ecd9025b9a6e0d88485d628a67", network: "ETH", type: "VASP_HOT_WALLET" },
-      { address: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t", network: "TRON", type: "VASP_HOT_WALLET" },
+      { address: "TYukBQSnjAEmM72HjWqFZ6wL5M2k8Y4p3z", network: "TRON", type: "VASP_HOT_WALLET" },
       { address: "385cR5DM96n1HvBDMzLHPYcw89fZAXULJP", network: "BTC", type: "VASP_HOT_WALLET" },
     ],
   },

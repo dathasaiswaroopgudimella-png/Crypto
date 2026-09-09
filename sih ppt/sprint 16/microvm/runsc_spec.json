@@ -1,0 +1,278 @@
+{
+  "ociVersion": "1.0.2",
+  "process": {
+    "terminal": false,
+    "user": {
+      "uid": 1000,
+      "gid": 1000
+    },
+    "args": [
+      "/usr/local/bin/python3",
+      "-m",
+      "chronis.worker"
+    ],
+    "env": [
+      "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+      "TERM=xterm",
+      "CHRONIS_SECURITY_BOUNDARY=gvisor_runsc"
+    ],
+    "cwd": "/app",
+    "capabilities": {
+      "bounding": [
+        "CAP_CHOWN",
+        "CAP_DAC_OVERRIDE",
+        "CAP_FOWNER",
+        "CAP_SETGID",
+        "CAP_SETUID",
+        "CAP_IPC_LOCK"
+      ],
+      "effective": [
+        "CAP_CHOWN",
+        "CAP_DAC_OVERRIDE",
+        "CAP_FOWNER",
+        "CAP_SETGID",
+        "CAP_SETUID",
+        "CAP_IPC_LOCK"
+      ],
+      "inheritable": [
+        "CAP_CHOWN",
+        "CAP_DAC_OVERRIDE",
+        "CAP_FOWNER",
+        "CAP_SETGID",
+        "CAP_SETUID",
+        "CAP_IPC_LOCK"
+      ],
+      "permitted": [
+        "CAP_CHOWN",
+        "CAP_DAC_OVERRIDE",
+        "CAP_FOWNER",
+        "CAP_SETGID",
+        "CAP_SETUID",
+        "CAP_IPC_LOCK"
+      ]
+    },
+    "rlimits": [
+      {
+        "type": "RLIMIT_NOFILE",
+        "hard": 2048,
+        "soft": 1024
+      },
+      {
+        "type": "RLIMIT_MEMLOCK",
+        "hard": 67108864,
+        "soft": 67108864
+      }
+    ],
+    "noNewPrivileges": true
+  },
+  "root": {
+    "path": "rootfs",
+    "readonly": true
+  },
+  "mounts": [
+    {
+      "destination": "/proc",
+      "type": "proc",
+      "source": "proc",
+      "options": [
+        "nosuid",
+        "noexec",
+        "nodev"
+      ]
+    },
+    {
+      "destination": "/dev",
+      "type": "tmpfs",
+      "source": "tmpfs",
+      "options": [
+        "nosuid",
+        "strictatime",
+        "mode=755",
+        "size=65536k"
+      ]
+    },
+    {
+      "destination": "/dev/pts",
+      "type": "devpts",
+      "source": "devpts",
+      "options": [
+        "nosuid",
+        "noexec",
+        "newinstance",
+        "ptmxmode=0666",
+        "mode=0620"
+      ]
+    },
+    {
+      "destination": "/dev/shm",
+      "type": "tmpfs",
+      "source": "shm",
+      "options": [
+        "nosuid",
+        "noexec",
+        "nodev",
+        "mode=1777",
+        "size=67108864"
+      ]
+    },
+    {
+      "destination": "/dev/mqueue",
+      "type": "mqueue",
+      "source": "mqueue",
+      "options": [
+        "nosuid",
+        "noexec",
+        "nodev"
+      ]
+    },
+    {
+      "destination": "/sys",
+      "type": "sysfs",
+      "source": "sysfs",
+      "options": [
+        "nosuid",
+        "noexec",
+        "nodev",
+        "ro"
+      ]
+    },
+    {
+      "destination": "/tmp",
+      "type": "tmpfs",
+      "source": "tmpfs",
+      "options": [
+        "nosuid",
+        "nodev",
+        "mode=1777",
+        "size=67108864"
+      ]
+    }
+  ],
+  "linux": {
+    "resources": {
+      "memory": {
+        "limit": 268435456,
+        "reservation": 268435456,
+        "swap": 0
+      },
+      "cpu": {
+        "shares": 1024,
+        "quota": 200000,
+        "period": 100000
+      },
+      "pids": {
+        "limit": 128
+      }
+    },
+    "namespaces": [
+      {
+        "type": "pid"
+      },
+      {
+        "type": "network"
+      },
+      {
+        "type": "ipc"
+      },
+      {
+        "type": "uts"
+      },
+      {
+        "type": "mount"
+      },
+      {
+        "type": "user"
+      }
+    ],
+    "uidMappings": [
+      {
+        "containerID": 0,
+        "hostID": 100000,
+        "size": 65536
+      }
+    ],
+    "gidMappings": [
+      {
+        "containerID": 0,
+        "hostID": 100000,
+        "size": 65536
+      }
+    ],
+    "seccomp": {
+      "defaultAction": "SCMP_ACT_ERRNO",
+      "architectures": [
+        "SCMP_ARCH_X86_64",
+        "SCMP_ARCH_AARCH64"
+      ],
+      "syscalls": [
+        {
+          "names": [
+            "read",
+            "write",
+            "openat",
+            "close",
+            "fstat",
+            "newfstatat",
+            "lseek",
+            "mmap",
+            "mprotect",
+            "munmap",
+            "brk",
+            "rt_sigaction",
+            "rt_sigprocmask",
+            "rt_sigreturn",
+            "ioctl",
+            "pread64",
+            "pwrite64",
+            "readv",
+            "writev",
+            "access",
+            "pipe2",
+            "select",
+            "poll",
+            "sched_yield",
+            "madvise",
+            "mlock",
+            "munlock",
+            "getpid",
+            "getuid",
+            "getgid",
+            "geteuid",
+            "getegid",
+            "nanosleep",
+            "clock_gettime",
+            "futex",
+            "exit_group",
+            "epoll_create1",
+            "epoll_ctl",
+            "epoll_wait",
+            "getrandom",
+            "prctl",
+            "arch_prctl",
+            "set_tid_address",
+            "set_robust_list"
+          ],
+          "action": "SCMP_ACT_ALLOW"
+        }
+      ]
+    },
+    "maskedPaths": [
+      "/proc/acpi",
+      "/proc/asound",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/timer_list",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/sys/firmware"
+    ],
+    "readonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ]
+  }
+}

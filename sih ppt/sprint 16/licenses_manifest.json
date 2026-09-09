@@ -1,0 +1,73 @@
+{
+  "_meta": {
+    "purpose": "T16.7 license-compatibility gate input for in-boundary ML dependencies named in Addendum 7.4a (Whisper, pyannote.audio, openSMILE, HDBSCAN, BERTopic, statsmodels, bocd).",
+    "gate": "Gate T16.7 (SPDX/SBOM License Compliance Gate)",
+    "verification_method": "individually web-searched against upstream repo/PyPI metadata; this is a point-in-time snapshot, not a live SBOM run (no network access in the build sandbox to run pip-licenses/syft against an installed environment)",
+    "verified_as_of": "2026-09-08",
+    "action_required": "wire this gate to a real SBOM tool (pip-licenses / syft / SPDX scanner) in a network-enabled CI job; treat this file as the seed manifest and initial findings, not a substitute for that.",
+    "classification_tiers": {
+      "APPROVED": "Permissive (MIT, BSD-3-Clause, Apache-2.0, ISC)",
+      "REVIEW_REQUIRED": "Weak Copyleft (LGPL, MPL)",
+      "BLOCKING": "Strong Copyleft (GPL, AGPL), Non-Commercial (audEERING-NC), Unknown (unverified)"
+    },
+    "blocker_status": "openSMILE audEERING-NC and bocd UNKNOWN are explicitly identified as unresolved in-boundary blockers"
+  },
+  "packages": {
+    "openai-whisper": {
+      "declared_license": "MIT",
+      "concluded_spdx": "MIT",
+      "status_tier": "APPROVED",
+      "blocking": false,
+      "source": "upstream setup.py (license=\"MIT\"), confirmed via repo metadata",
+      "notes": "package license only. Whisper's own model weights are separately released by OpenAI; if a different checkpoint/fork is ever substituted, re-verify."
+    },
+    "pyannote.audio": {
+      "declared_license": "MIT",
+      "concluded_spdx": "MIT",
+      "status_tier": "APPROVED",
+      "blocking": false,
+      "source": "upstream setup.py / packaging metadata",
+      "notes": "package license is MIT, but the pretrained pipelines used at runtime (e.g. pyannote/speaker-diarization-3.1 on HuggingFace) are gated behind separate HuggingFace user-conditions acceptance -- that's a usage-terms/access issue, not a redistribution-license issue, but worth tracking alongside this gate since it blocks unattended deployment without a one-time manual acceptance step."
+    },
+    "hdbscan": {
+      "declared_license": "BSD-3-Clause",
+      "concluded_spdx": "BSD-3-Clause",
+      "status_tier": "APPROVED",
+      "blocking": false,
+      "source": "upstream conda-forge meta.yaml and repo README",
+      "notes": null
+    },
+    "bertopic": {
+      "declared_license": "MIT",
+      "concluded_spdx": "MIT",
+      "status_tier": "APPROVED",
+      "blocking": false,
+      "source": "upstream repo PyPI classifiers / packaging metadata",
+      "notes": null
+    },
+    "statsmodels": {
+      "declared_license": "BSD-3-Clause",
+      "concluded_spdx": "BSD-3-Clause",
+      "status_tier": "APPROVED",
+      "blocking": false,
+      "source": "well-established upstream license, not independently re-searched this pass",
+      "notes": null
+    },
+    "opensmile": {
+      "declared_license": "audEERING-NC",
+      "concluded_spdx": "audEERING-NC",
+      "status_tier": "BLOCKING",
+      "blocking": true,
+      "source": "upstream repo README (audeering/opensmile, audeering/opensmile-python): \"source code and binaries are freely available for private, research, and educational use... It is not allowed to use the open-source version of openSMILE for any sort of commercial product... we require you to buy a commercial development license.\"",
+      "notes": "NOT an OSI open-source license -- source-available with a commercial-use prohibition. This is a business-blocking finding, not a copyleft one: see README.md. Sprint 2 already deploys this for prosody extraction."
+    },
+    "bocd": {
+      "declared_license": "UNKNOWN",
+      "concluded_spdx": "UNKNOWN",
+      "status_tier": "BLOCKING",
+      "blocking": true,
+      "source": "no LICENSE clearly published for the specific reference implementation named in the Sprint 5 spec (gwgundersen/bocd); a separately-named, unrelated PyPI package 'pybocd' (different author, different codebase) is GPL-3.0-or-later -- do not conflate the two.",
+      "notes": "fails closed pending manual verification. If gwgundersen/bocd is confirmed unlicensed (all-rights-reserved by default), it cannot be used at all without contacting the author; if a differently-licensed reference implementation is substituted, re-verify and update this entry."
+    }
+  }
+}

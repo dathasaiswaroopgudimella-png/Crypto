@@ -91,6 +91,8 @@ export interface TransactionRecord {
   gasRefillDetected?: boolean;
   gasRefillAmount?: number;
   gasRefillAsset?: string;
+  gasRefillSource?: string;
+  gasRefillBlockNumber?: number;
   isSweepingTx?: boolean;
   isBridgeTx?: boolean;
   bridgeName?: string;

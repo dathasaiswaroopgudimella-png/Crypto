@@ -9,6 +9,7 @@ import VaspTab from "@/components/VaspTab";
 import LegalTab from "@/components/LegalTab";
 import DossierTab from "@/components/DossierTab";
 import { GraphTraceResult, BlockchainNetwork } from "@/lib/types";
+import { AUTHENTIC_FORENSIC_CASES } from "@/lib/forensic-cases";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<Tab>("overview");
@@ -59,9 +60,19 @@ export default function Home() {
     runTrace(address, false, network as BlockchainNetwork);
   }, [runTrace]);
 
-  const handleRequestNotice = useCallback(() => {
+  const handleRequestNotice = useCallback((vaspName?: string) => {
     setActiveTab("legal");
-  }, []);
+    if (!traceResult && vaspName) {
+      const matchedCase = AUTHENTIC_FORENSIC_CASES.find(c =>
+        c.attributedVasp.toLowerCase().includes(vaspName.toLowerCase()) ||
+        vaspName.toLowerCase().includes(c.attributedVasp.toLowerCase())
+      ) || AUTHENTIC_FORENSIC_CASES[0];
+      if (matchedCase) {
+        setSearchAddress(matchedCase.initialSuspectAddress);
+        runTrace(matchedCase.initialSuspectAddress, true);
+      }
+    }
+  }, [traceResult, runTrace]);
 
   const handleNavigateTrace = useCallback(() => {
     setActiveTab("trace");
@@ -74,7 +85,7 @@ export default function Home() {
   const alertCount = traceResult?.detectedPatterns?.length || 0;
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0a0f1d", color: "#f8fafc" }}>
+    <div style={{ minHeight: "100vh", background: "#060b18", color: "#f8fafc" }}>
       <Header
         activeTab={activeTab}
         setActiveTab={setActiveTab}

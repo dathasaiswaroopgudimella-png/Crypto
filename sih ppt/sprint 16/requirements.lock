@@ -1,0 +1,12 @@
+﻿# Pinned dependency lockfile for CHRONIS Sprint 16 Trust Boundaries
+# Generated for reproducible, hermetic builds and CI verification
+# Python Version: 3.10.11
+
+cffi==2.0.0
+cryptography==49.0.0
+joblib==1.6.0
+numpy==2.2.6
+pycparser==3.0
+scikit-learn==1.7.2
+scipy==1.15.3
+threadpoolctl==3.6.0
