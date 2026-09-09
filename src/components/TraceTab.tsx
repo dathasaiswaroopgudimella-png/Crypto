@@ -61,7 +61,11 @@ const NODE_THEMES: Record<string, { bg: string; border: string; text: string; gl
 };
 
 function ForensicNodeCard({ data }: { data: ForensicNode }) {
-  const theme = NODE_THEMES[data.entityType] || NODE_THEMES.UNKNOWN;
+  const theme = (data && data.entityType && NODE_THEMES[data.entityType]) || NODE_THEMES.UNKNOWN;
+  const rawAddr = String(data?.fullAddress || data?.id || "");
+  const shortAddr = rawAddr.length > 16 ? `${rawAddr.slice(0, 10)}...${rawAddr.slice(-6)}` : rawAddr;
+  const inflowNum = Number.isFinite(data?.totalInflowUsd) ? data.totalInflowUsd : 0;
+  const balanceNum = Number.isFinite(data?.balanceUsd) ? data.balanceUsd : 0;
 
   return (
     <div style={{
@@ -95,18 +99,18 @@ function ForensicNodeCard({ data }: { data: ForensicNode }) {
           background: "rgba(14, 165, 233, 0.15)", color: "#38bdf8",
           border: "1px solid rgba(14, 165, 233, 0.3)", fontWeight: 800,
         }}>
-          {data.network}
+          {data?.network || "CHAIN"}
         </span>
       </div>
 
       {/* Node Name / Label */}
       <div style={{ fontSize: 13, fontWeight: 800, color: "#f8fafc", marginBottom: 3 }}>
-        {data.entityName || data.label}
+        {data?.entityName || data?.label || shortAddr}
       </div>
 
       {/* Address */}
       <div style={{ fontFamily: "monospace", fontSize: 10, color: "#94a3b8", marginBottom: 10 }}>
-        {data.fullAddress.slice(0, 10)}...{data.fullAddress.slice(-6)}
+        {shortAddr}
       </div>
 
       {/* Metrics Row */}
@@ -114,13 +118,13 @@ function ForensicNodeCard({ data }: { data: ForensicNode }) {
         <div>
           <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", fontWeight: 700 }}>Volume Tracked</div>
           <div style={{ fontSize: 12, fontWeight: 800, color: "#10b981" }}>
-            ${data.totalInflowUsd.toLocaleString()}
+            ${inflowNum.toLocaleString()}
           </div>
         </div>
         <div>
           <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", fontWeight: 700 }}>Current Balance</div>
           <div style={{ fontSize: 12, fontWeight: 800, color: theme.text }}>
-            ${data.balanceUsd.toLocaleString()}
+            ${balanceNum.toLocaleString()}
           </div>
         </div>
       </div>
@@ -211,15 +215,18 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
 
     // Deduplicate edges and build ReactFlow edges
     const edgeMap = new Map<string, ForensicEdge>();
-    for (const edge of traceResult.edges) {
-      const dedupeKey = `${edge.source.toLowerCase()}__${edge.target.toLowerCase()}__${edge.tokenSymbol}`;
+    for (const edge of traceResult.edges || []) {
+      const src = String(edge?.source || "").toLowerCase();
+      const tgt = String(edge?.target || "").toLowerCase();
+      const sym = String(edge?.tokenSymbol || "USDT");
+      const dedupeKey = `${src}__${tgt}__${sym}`;
       const existing = edgeMap.get(dedupeKey);
       if (existing) {
-        existing.amount += edge.amount || 0;
+        existing.amount += Number(edge.amount) || 0;
         existing.isSweeping = existing.isSweeping || edge.isSweeping;
         existing.isBridgeTx = existing.isBridgeTx || edge.isBridgeTx;
       } else {
-        edgeMap.set(dedupeKey, { ...edge });
+        edgeMap.set(dedupeKey, { ...edge, source: edge.source || src, target: edge.target || tgt });
       }
     }
 
@@ -233,24 +240,29 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
     const visibleNodeIds = new Set(filteredNodes.map(n => n.id));
     edgeList = edgeList.filter(e => visibleNodeIds.has(e.source) && visibleNodeIds.has(e.target));
 
-    const rfEdges: Edge[] = edgeList.map((edge, idx) => ({
-      id: `rf-${idx}-${edge.source.slice(0, 6)}-${edge.target.slice(0, 6)}`,
-      source: edge.source,
-      target: edge.target,
-      label: edge.amount > 0 ? `$${edge.amount.toLocaleString()} ${edge.tokenSymbol}` : edge.tokenSymbol,
-      animated: true,
-      style: {
-        stroke: edge.isSweeping ? "#10b981" : edge.isBridgeTx ? "#06b6d4" : "#38bdf8",
-        strokeWidth: isFocusPathActive ? 3 : 2,
-      },
-      labelStyle: { fill: "#f8fafc", fontSize: 10, fontWeight: 700 },
-      labelBgStyle: { fill: "#0b1226", fillOpacity: 0.95, stroke: "#334155", strokeWidth: 1, rx: 4 },
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-        color: edge.isSweeping ? "#10b981" : edge.isBridgeTx ? "#06b6d4" : "#38bdf8",
-      },
-      data: edge,
-    }));
+    const rfEdges: Edge[] = edgeList.map((edge, idx) => {
+      const src = String(edge.source || "");
+      const tgt = String(edge.target || "");
+      const amt = Number.isFinite(edge.amount) ? edge.amount : 0;
+      return {
+        id: `rf-${idx}-${src.slice(0, 6)}-${tgt.slice(0, 6)}`,
+        source: edge.source,
+        target: edge.target,
+        label: amt > 0 ? `$${amt.toLocaleString()} ${edge.tokenSymbol || ""}` : (edge.tokenSymbol || ""),
+        animated: true,
+        style: {
+          stroke: edge.isSweeping ? "#10b981" : edge.isBridgeTx ? "#06b6d4" : "#38bdf8",
+          strokeWidth: isFocusPathActive ? 3 : 2,
+        },
+        labelStyle: { fill: "#f8fafc", fontSize: 10, fontWeight: 700 },
+        labelBgStyle: { fill: "#0b1226", fillOpacity: 0.95, stroke: "#334155", strokeWidth: 1, rx: 4 },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: edge.isSweeping ? "#10b981" : edge.isBridgeTx ? "#06b6d4" : "#38bdf8",
+        },
+        data: edge,
+      };
+    });
 
     setNodes(rfNodes);
     setEdges(rfEdges);
@@ -296,7 +308,39 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
   const vasp = traceResult?.vaspAttribution || traceResult?.destinationVasp;
   const criminalRisk = traceResult?.criminalRiskScore || traceResult?.overallRiskScore;
 
-  if (!traceResult && !isLoading) {
+  if (isLoading) {
+    return (
+      <div style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        height: "calc(100vh - 145px)",
+        gap: 20,
+        color: "#f8fafc",
+        background: "#060b18",
+      }}>
+        {/* Sovereign Cyber Scanning Radar Animation */}
+        <div style={{ position: "relative", width: 88, height: 88, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ position: "absolute", inset: 0, borderRadius: "50%", border: "2px solid rgba(14, 165, 233, 0.25)", animation: "ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite" }} />
+          <div style={{ position: "absolute", inset: 8, borderRadius: "50%", border: "2px dashed #0ea5e9", animation: "spin 6s linear infinite" }} />
+          <div style={{ width: 48, height: 48, borderRadius: "50%", background: "radial-gradient(circle, #0ea5e9 0%, #0369a1 100%)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 30px rgba(14, 165, 233, 0.6)" }}>
+            <Activity size={24} color="#060b18" />
+          </div>
+        </div>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 16, fontWeight: 900, color: "#38bdf8", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+            Executing Multi-Chain Forensic Crawl
+          </div>
+          <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 6, maxWidth: 480 }}>
+            Querying distributed RPC nodes · Analyzing 2-step sweeping heuristics · Computing Section 63 BSA electronic state checksum
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!traceResult) {
     return (
       <div style={{
         display: "flex",
@@ -644,13 +688,13 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
             <div style={{ background: "#0b1226", padding: "10px", borderRadius: 8, border: "1px solid #1a2742" }}>
               <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", fontWeight: 700 }}>Tracked Inflow</div>
               <div style={{ fontSize: 13, fontWeight: 800, color: "#10b981" }}>
-                ${selectedNode.totalInflowUsd.toLocaleString()}
+                ${(Number(selectedNode.totalInflowUsd) || 0).toLocaleString()}
               </div>
             </div>
             <div style={{ background: "#0b1226", padding: "10px", borderRadius: 8, border: "1px solid #1a2742" }}>
               <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", fontWeight: 700 }}>Current Balance</div>
               <div style={{ fontSize: 13, fontWeight: 800, color: "#f8fafc" }}>
-                ${selectedNode.balanceUsd.toLocaleString()}
+                ${(Number(selectedNode.balanceUsd) || 0).toLocaleString()}
               </div>
             </div>
           </div>
@@ -765,13 +809,13 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
             <div style={{ background: "#0b1226", padding: "8px 10px", borderRadius: 6, border: "1px solid #1a2742" }}>
               <div style={{ fontSize: 10, color: "#94a3b8" }}>AMOUNT TRANSFERRED</div>
               <div style={{ fontSize: 13, fontWeight: 800, color: "#10b981" }}>
-                ${selectedEdge.amount.toLocaleString()} {selectedEdge.tokenSymbol}
+                ${(Number(selectedEdge.amount) || 0).toLocaleString()} {selectedEdge.tokenSymbol || ""}
               </div>
             </div>
             <div style={{ background: "#0b1226", padding: "8px 10px", borderRadius: 6, border: "1px solid #1a2742" }}>
               <div style={{ fontSize: 10, color: "#94a3b8" }}>BLOCK / NETWORK</div>
               <div style={{ fontSize: 12, fontWeight: 700, color: "#f8fafc" }}>
-                {selectedEdge.network} {selectedEdge.blockNumber ? `(#${selectedEdge.blockNumber})` : ""}
+                {selectedEdge.network || "CHAIN"} {selectedEdge.blockNumber ? `(#${selectedEdge.blockNumber})` : ""}
               </div>
             </div>
           </div>
@@ -779,8 +823,8 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
           <div>
             <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", fontWeight: 700 }}>Sender ➔ Recipient</div>
             <div style={{ fontSize: 12, color: "#cbd5e1", marginTop: 2, fontFamily: "monospace" }}>
-              From: {selectedEdge.source.slice(0, 10)}...{selectedEdge.source.slice(-6)}<br />
-              To: {selectedEdge.target.slice(0, 10)}...{selectedEdge.target.slice(-6)}
+              From: {String(selectedEdge.source || "").slice(0, 10)}...{String(selectedEdge.source || "").slice(-6)}<br />
+              To: {String(selectedEdge.target || "").slice(0, 10)}...{String(selectedEdge.target || "").slice(-6)}
             </div>
           </div>
 

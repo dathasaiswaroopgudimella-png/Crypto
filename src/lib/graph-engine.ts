@@ -167,7 +167,10 @@ export class GraphTraversalEngine {
 
     let rootState: any;
     try {
-      rootState = await globalMultiChainRouter.queryAccount(cleanRoot, resolvedNetwork);
+      rootState = await Promise.race([
+        globalMultiChainRouter.queryAccount(cleanRoot, resolvedNetwork),
+        new Promise<any>((_, reject) => setTimeout(() => reject(new Error("RPC Timeout")), 1500))
+      ]);
     } catch (err) {
       console.warn("[Graph Engine] Live query error:", err);
       rootState = {

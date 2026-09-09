@@ -18,10 +18,17 @@ export default function Home() {
   const [traceResult, setTraceResult] = useState<GraphTraceResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const runTrace = useCallback(async (address?: string, isPreset: boolean = false, network?: BlockchainNetwork) => {
-    const target = (address || searchAddress).trim();
-    if (!target) return;
+  const [traceError, setTraceError] = useState<string | null>(null);
 
+  const runTrace = useCallback(async (address?: string, isPreset: boolean = false, network?: BlockchainNetwork) => {
+    let target = (address || searchAddress).trim();
+    if (!target) {
+      target = AUTHENTIC_FORENSIC_CASES[0].initialSuspectAddress;
+      setSearchAddress(target);
+      isPreset = true;
+    }
+
+    setTraceError(null);
     setIsLoading(true);
     setActiveTab("trace");
 
@@ -37,11 +44,14 @@ export default function Home() {
         }),
       });
       const json = await res.json();
-      if (json.success) {
+      if (json.success && json.data) {
         setTraceResult(json.data);
+      } else {
+        setTraceError(json.error || "Unable to trace address. Public RPC nodes may be rate-limiting.");
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error("[Trace Error]", e);
+      setTraceError("Network connection interrupted during multi-chain BFS crawl. Please retry.");
     } finally {
       setIsLoading(false);
     }
@@ -98,6 +108,39 @@ export default function Home() {
         onSelectCase={handleSelectCase}
         alertCount={alertCount}
       />
+
+      {traceError && (
+        <div style={{
+          background: "rgba(239, 68, 68, 0.12)",
+          borderBottom: "1px solid rgba(239, 68, 68, 0.35)",
+          padding: "10px 24px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          color: "#fca5a5",
+          fontSize: 12,
+          fontFamily: "monospace",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ color: "#ef4444", fontWeight: 900 }}>[TELEMETRY ALERT]</span>
+            <span>{traceError}</span>
+          </div>
+          <button
+            onClick={() => setTraceError(null)}
+            style={{
+              background: "transparent",
+              border: "1px solid rgba(239, 68, 68, 0.4)",
+              color: "#fca5a5",
+              borderRadius: 4,
+              padding: "2px 8px",
+              cursor: "pointer",
+              fontSize: 10,
+            }}
+          >
+            DISMISS
+          </button>
+        </div>
+      )}
 
       <main>
         {activeTab === "overview" && (
