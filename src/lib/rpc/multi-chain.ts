@@ -83,6 +83,16 @@ export function detectCryptoAsset(address: string): AssetDetectionResult {
 
 class EndpointCircuitBreaker {
   private failedHosts = new Map<string, number>();
+  private maxCooldownMs = 5000;
+  private registeredPools: string[][] = [];
+
+  constructor(maxCooldownMs: number = 5000) {
+    this.maxCooldownMs = maxCooldownMs;
+  }
+
+  registerPool(hosts: string[]): void {
+    this.registeredPools.push(hosts.map(h => this.getHost(h)));
+  }
 
   isAvailable(url: string): boolean {
     const host = this.getHost(url);
@@ -92,12 +102,40 @@ class EndpointCircuitBreaker {
       this.failedHosts.delete(host);
       return true;
     }
+
+    // Resilience rule: Check if all nodes in any registered pool containing this host are locked
+    for (const pool of this.registeredPools) {
+      if (pool.includes(host)) {
+        const allLocked = pool.every(h => {
+          const cd = this.failedHosts.get(h);
+          return cd && Date.now() <= cd;
+        });
+        // If all nodes in pool are locked, permit earliest node to prevent total blackout
+        if (allLocked) {
+          let earliestHost = pool[0];
+          let earliestTime = this.failedHosts.get(earliestHost) || Infinity;
+          for (const h of pool) {
+            const t = this.failedHosts.get(h) || 0;
+            if (t < earliestTime) {
+              earliestTime = t;
+              earliestHost = h;
+            }
+          }
+          if (host === earliestHost) {
+            this.failedHosts.delete(host);
+            return true;
+          }
+        }
+      }
+    }
+
     return false;
   }
 
-  recordFailure(url: string, durationMs: number = 30000): void {
+  recordFailure(url: string, durationMs: number = 5000): void {
     const host = this.getHost(url);
-    this.failedHosts.set(host, Date.now() + durationMs);
+    const clamped = Math.min(Math.max(500, durationMs), this.maxCooldownMs);
+    this.failedHosts.set(host, Date.now() + clamped);
   }
 
   recordSuccess(url: string): void {
@@ -114,12 +152,81 @@ class EndpointCircuitBreaker {
   }
 }
 
-export const globalCircuitBreaker = new EndpointCircuitBreaker();
+export const globalCircuitBreaker = new EndpointCircuitBreaker(5000);
+
+// Pre-register multi-chain endpoint pools for blackout prevention
+globalCircuitBreaker.registerPool([
+  "https://eth.blockscout.com",
+  "https://ethereum-rpc.publicnode.com",
+  "https://eth.llamarpc.com",
+  "https://cloudflare-eth.com"
+]);
+globalCircuitBreaker.registerPool([
+  "https://apilist.tronscanapi.com",
+  "https://apilist.tronscan.org",
+  "https://api.trongrid.io"
+]);
+globalCircuitBreaker.registerPool([
+  "https://blockchain.info",
+  "https://blockstream.info",
+  "https://mempool.space"
+]);
+
+/**
+ * Concurrency Limiter to throttle outbound RPC calls and prevent thread starvation
+ */
+export class ConcurrencyLimiter {
+  private activeCount = 0;
+  private maxConcurrency: number;
+  private queue: Array<() => void> = [];
+
+  constructor(maxConcurrency: number = 8) {
+    this.maxConcurrency = maxConcurrency;
+  }
+
+  async run<T>(task: () => Promise<T>): Promise<T> {
+    if (this.activeCount >= this.maxConcurrency) {
+      await new Promise<void>((resolve) => this.queue.push(resolve));
+    }
+    this.activeCount++;
+    try {
+      return await task();
+    } finally {
+      this.activeCount--;
+      if (this.queue.length > 0) {
+        const next = this.queue.shift();
+        if (next) next();
+      }
+    }
+  }
+
+  getActiveCount(): number {
+    return this.activeCount;
+  }
+
+  getQueueLength(): number {
+    return this.queue.length;
+  }
+}
+
+export const globalRpcLimiter = new ConcurrencyLimiter(8);
+
+/**
+ * Safely parses big integers without throwing SyntaxError
+ */
+export function safeBigInt(val: any, fallback: bigint = 0n): bigint {
+  if (val === undefined || val === null || val === "") return fallback;
+  try {
+    return BigInt(val);
+  } catch {
+    return fallback;
+  }
+}
 
 async function safeFetchJson<T>(
   url: string,
   options: RequestInit = {},
-  timeoutMs: number = 3000
+  timeoutMs: number = 3500
 ): Promise<{ ok: boolean; status: number; data?: T; error?: string }> {
   if (!globalCircuitBreaker.isAvailable(url)) {
     return { ok: false, status: 429, error: "Host in rate-limit cooldown" };
@@ -137,12 +244,12 @@ async function safeFetchJson<T>(
     });
 
     if (res.status === 429) {
-      globalCircuitBreaker.recordFailure(url, 60000); // 60s cooldown for 429
+      globalCircuitBreaker.recordFailure(url, 5000); // max 5s cooldown for 429
       return { ok: false, status: 429, error: "Rate limit exceeded (429)" };
     }
 
     if (res.status >= 500) {
-      globalCircuitBreaker.recordFailure(url, 30000); // 30s cooldown for 5xx
+      globalCircuitBreaker.recordFailure(url, 3000); // 3s cooldown for 5xx
       return { ok: false, status: res.status, error: `Server error (${res.status})` };
     }
 
@@ -154,7 +261,7 @@ async function safeFetchJson<T>(
     const data = (await res.json()) as T;
     return { ok: true, status: res.status, data };
   } catch (err: any) {
-    globalCircuitBreaker.recordFailure(url, 25000); // 25s cooldown for timeout or connection failure
+    globalCircuitBreaker.recordFailure(url, 2500); // 2.5s cooldown for timeout or network glitch
     return { ok: false, status: 0, error: err?.message || "Network request failed" };
   }
 }
@@ -181,9 +288,14 @@ export class MultiChainForensicRouter {
     let txCount = 0;
     let querySuccess = false;
 
-    // --- Tier 1: Blockchain.info ---
-    const bcUrl = `https://blockchain.info/rawaddr/${address}?limit=25`;
-    const bcRes = await safeFetchJson<any>(bcUrl, {}, 3200);
+    // --- Tier 1: Blockchain.info rawaddr ---
+    const bcApiKey = process.env.BLOCKCHAIN_COM_API_KEY;
+    const bcHeaders: Record<string, string> = { "User-Agent": "Mozilla/5.0 AEGIS-TRACE/2.0" };
+    if (bcApiKey && bcApiKey.length > 5 && !bcApiKey.includes("your_")) {
+      bcHeaders["X-API-Token"] = bcApiKey;
+    }
+    const bcUrl = `https://blockchain.info/rawaddr/${address}?limit=25&cors=true`;
+    const bcRes = await safeFetchJson<any>(bcUrl, { headers: bcHeaders }, 3500);
 
     if (bcRes.ok && bcRes.data) {
       const data = bcRes.data;
@@ -368,8 +480,17 @@ export class MultiChainForensicRouter {
     let querySuccess = false;
 
     // --- Tier 1: TronScan TRC-20 transfers ---
-    const tsUrl = `https://apilist.tronscan.org/api/token_trc20/transfers?limit=25&start=0&relatedAddress=${address}`;
-    const tsRes = await safeFetchJson<any>(tsUrl, {}, 3200);
+    const tgApiKey = process.env.TRONGRID_API_KEY;
+    const tgHeaders: Record<string, string> = { "User-Agent": "Mozilla/5.0 AEGIS-TRACE/2.0" };
+    if (tgApiKey && tgApiKey.length > 5 && !tgApiKey.includes("your_")) {
+      tgHeaders["TRON-PRO-API-KEY"] = tgApiKey;
+    }
+
+    const tsUrl = `https://apilist.tronscanapi.com/api/token_trc20/transfers?limit=25&start=0&relatedAddress=${address}`;
+    let tsRes = await safeFetchJson<any>(tsUrl, { headers: tgHeaders }, 3500);
+    if (!tsRes.ok) {
+      tsRes = await safeFetchJson<any>(`https://apilist.tronscan.org/api/token_trc20/transfers?limit=25&start=0&relatedAddress=${address}`, { headers: tgHeaders }, 3500);
+    }
 
     if (tsRes.ok && tsRes.data?.token_transfers) {
       querySuccess = true;
@@ -417,7 +538,7 @@ export class MultiChainForensicRouter {
     // --- Tier 2: TronGrid official REST API fallback ---
     if (!querySuccess || (outgoing.length === 0 && incoming.length === 0)) {
       const tgUrl = `https://api.trongrid.io/v1/accounts/${address}/transactions/trc20?limit=25`;
-      const tgRes = await safeFetchJson<any>(tgUrl, {}, 3000);
+      const tgRes = await safeFetchJson<any>(tgUrl, { headers: tgHeaders }, 3500);
 
       if (tgRes.ok && Array.isArray(tgRes.data?.data)) {
         querySuccess = true;
@@ -518,43 +639,39 @@ export class MultiChainForensicRouter {
     let totalOutflow = 0;
     let blockscoutSuccess = false;
 
-    // --- Tier 1: Blockscout token transfers ---
-    const tokenUrl = `https://${host}/api/v2/addresses/${clean}/token-transfers`;
-    const tokenRes = await safeFetchJson<any>(tokenUrl, {}, 3200);
+    // --- Tier 1: Blockscout Etherscan-compatible ERC-20 token transfers ---
+    const tokenUrl = `https://${host}/api?module=account&action=tokentx&address=${clean}&page=1&offset=25`;
+    const tokenRes = await safeFetchJson<any>(tokenUrl, {}, 3500);
 
-    if (tokenRes.ok && tokenRes.data?.items) {
+    if (tokenRes.ok && Array.isArray(tokenRes.data?.result)) {
       blockscoutSuccess = true;
-      for (const item of tokenRes.data.items || []) {
-        const fromAddr = item.from?.hash?.toLowerCase() || "";
-        const toAddr = item.to?.hash?.toLowerCase() || "";
-        const rawValStr = item.total?.value || item.value || "0";
-        const rawVal = BigInt(rawValStr);
+      for (const item of tokenRes.data.result) {
+        const fromAddr = (item.from || "").toLowerCase();
+        const toAddr = (item.to || "").toLowerCase();
+        const rawValStr = item.value || "0";
+        let rawVal = BigInt(0);
+        try { rawVal = BigInt(rawValStr); } catch {}
 
-        const dec = Number(item.token?.decimals ?? item.total?.decimals ?? 18);
+        const dec = Number(item.tokenDecimal || 18);
         const tokenUnits = Number(rawVal) / Math.pow(10, Math.max(0, Math.min(18, dec)));
+        const symbol = (item.tokenSymbol || "USDT").toUpperCase();
+        const timestamp = item.timeStamp 
+          ? new Date(Number(item.timeStamp) * 1000).toISOString() 
+          : new Date().toISOString();
+        const blockNumber = Number(item.blockNumber || 0);
+        const txHash = item.hash || "0x...";
 
-        const symbol = (item.token?.symbol || "USDT").toUpperCase();
-        const timestamp = item.timestamp || new Date().toISOString();
-        const blockNumber = Number(item.block_number || 0);
-        const txHash = item.transaction_hash || "0x...";
-
-        let rate = 0;
+        let rate = 1.0;
         if (["USDT", "USDC", "DAI", "BUSD", "FDUSD", "TUSD"].includes(symbol)) {
           rate = 1.0;
         } else if (["WETH", "ETH", "STETH"].includes(symbol)) {
           rate = 2700.0;
-        } else if (item.token?.exchange_rate) {
-          rate = Number(item.token.exchange_rate);
+        } else if (["WBTC", "BTCB"].includes(symbol)) {
+          rate = 88000.0;
         }
 
-        let valUsd = 0;
-        if (rate > 0) {
-          valUsd = Math.round(tokenUnits * rate * 100) / 100;
-        } else if (tokenUnits > 0 && tokenUnits < 500000) {
-          valUsd = Math.round(tokenUnits * 100) / 100;
-        }
-
-        if (valUsd < 5) continue;
+        const valUsd = Math.round(tokenUnits * rate * 100) / 100;
+        if (valUsd < 1) continue;
 
         if (fromAddr === clean) {
           totalOutflow += valUsd;
@@ -584,58 +701,64 @@ export class MultiChainForensicRouter {
       }
     }
 
-    // Native ETH transactions if token transfers are empty
-    if (outgoing.length === 0 && incoming.length === 0) {
-      const txUrl = `https://${host}/api/v2/addresses/${clean}/transactions`;
-      const txRes = await safeFetchJson<any>(txUrl, {}, 3000);
-      if (txRes.ok && txRes.data?.items) {
-        blockscoutSuccess = true;
-        const ethPrice = 2700;
-        for (const item of txRes.data.items || []) {
-          const fromAddr = item.from?.hash?.toLowerCase() || "";
-          const toAddr = item.to?.hash?.toLowerCase() || "";
-          const valEth = Number(BigInt(item.value || "0")) / 1e18;
-          const valUsd = Math.round(valEth * ethPrice * 100) / 100;
-          const timestamp = item.timestamp || new Date().toISOString();
-          const blockNumber = Number(item.block_number || 0);
-          const txHash = item.hash || "0x...";
+    // Native ETH transactions via Blockscout Etherscan-compatible txlist
+    const txUrl = `https://${host}/api?module=account&action=txlist&address=${clean}&page=1&offset=25`;
+    const txRes = await safeFetchJson<any>(txUrl, {}, 3500);
+    if (txRes.ok && Array.isArray(txRes.data?.result)) {
+      blockscoutSuccess = true;
+      const ethPrice = 2700;
+      for (const item of txRes.data.result) {
+        const fromAddr = (item.from || "").toLowerCase();
+        const toAddr = (item.to || "").toLowerCase();
+        let valEth = 0;
+        try {
+          valEth = Number(BigInt(item.value || "0")) / 1e18;
+        } catch {}
+        const valUsd = Math.round(valEth * ethPrice * 100) / 100;
+        const timestamp = item.timeStamp 
+          ? new Date(Number(item.timeStamp) * 1000).toISOString() 
+          : new Date().toISOString();
+        const blockNumber = Number(item.blockNumber || 0);
+        const txHash = item.hash || "0x...";
 
-          if (valUsd < 5) continue;
+        if (valUsd < 5) continue;
 
-          if (fromAddr === clean && toAddr) {
-            totalOutflow += valUsd;
-            outgoing.push({
-              txHash,
-              fromAddress: clean,
-              toAddress: toAddr,
-              amount: valUsd,
-              tokenSymbol: "ETH",
-              timestamp,
-              blockNumber,
-              network,
-            });
-          } else if (toAddr === clean && fromAddr) {
-            totalInflow += valUsd;
-            incoming.push({
-              txHash,
-              fromAddress: fromAddr,
-              toAddress: clean,
-              amount: valUsd,
-              tokenSymbol: "ETH",
-              timestamp,
-              blockNumber,
-              network,
-            });
-          }
+        if (fromAddr === clean && toAddr) {
+          totalOutflow += valUsd;
+          outgoing.push({
+            txHash,
+            fromAddress: clean,
+            toAddress: toAddr,
+            amount: valUsd,
+            tokenSymbol: "ETH",
+            timestamp,
+            blockNumber,
+            network,
+          });
+        } else if (toAddr === clean && fromAddr) {
+          totalInflow += valUsd;
+          incoming.push({
+            txHash,
+            fromAddress: fromAddr,
+            toAddress: clean,
+            amount: valUsd,
+            tokenSymbol: "ETH",
+            timestamp,
+            blockNumber,
+            network,
+          });
         }
       }
     }
 
-    // Address balance
-    const accUrl = `https://${host}/api/v2/addresses/${clean}`;
-    const accRes = await safeFetchJson<any>(accUrl, {}, 3000);
-    if (accRes.ok && accRes.data?.coin_balance) {
-      const ethBal = Number(BigInt(accRes.data.coin_balance || "0")) / 1e18;
+    // Address balance via Blockscout Etherscan-compatible balance action
+    const balUrl = `https://${host}/api?module=account&action=balance&address=${clean}`;
+    const balRes = await safeFetchJson<any>(balUrl, {}, 3000);
+    if (balRes.ok && balRes.data?.result) {
+      let ethBal = 0;
+      try {
+        ethBal = Number(BigInt(balRes.data.result || "0")) / 1e18;
+      } catch {}
       balanceUsd = Math.round(ethBal * 2700 * 100) / 100;
     }
 

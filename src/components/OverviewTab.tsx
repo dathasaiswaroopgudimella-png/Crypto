@@ -248,7 +248,7 @@ const WORKFLOW_STEPS = [
     title: "Automated Multi-Chain Ingestion & Normalization",
     icon: Compass,
     color: "#ef4444",
-    statutoryRef: "Section 94 BNSS (2023) / CrPC §91",
+    statutoryRef: "Section 94 BNSS (2023)",
     shortDesc: "Victim reports wallet from 1930 Helpline or NCRP complaint. Multi-chain router identifies ledger family and checksum.",
     fullDesc: "Direct integration with the National Cybercrime Reporting Portal (NCRP) and 1930 Helpline webhooks. Address sanitization identifies whether the suspect address belongs to TRON (Base58check), Ethereum/EVM (EIP-55 hex), Bitcoin (SegWit/Taproot), or Solana (Base58), initiating instant mempool and ledger state queries.",
     checklist: [

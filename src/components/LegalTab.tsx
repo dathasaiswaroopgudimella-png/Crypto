@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { GraphTraceResult, Section94NoticeData } from "@/lib/types";
+import { BnssNoticeGenerator } from "@/lib/legal/bnss-notice";
 import { FileText, Download, Copy, AlertTriangle, Shield, CheckCircle2, Lock, Scale, Printer } from "lucide-react";
 
 interface LegalTabProps {
@@ -32,48 +33,7 @@ export default function LegalTab({ traceResult }: LegalTabProps) {
 
   const copyToClipboard = () => {
     if (!notice) return;
-    const text = [
-      `================================================================================`,
-      `LEGAL NOTICE UNDER SECTION 94 OF THE BHARATIYA NAGARIK SURAKSHA SANHITA (BNSS 2023)`,
-      `ORDER TO FREEZE PROCEEDS OF CRIME AND PRODUCE KYC DOCUMENTATION`,
-      `================================================================================`,
-      `Notice Reference: ${notice.noticeId}`,
-      `Date of Issuance: ${notice.date}`,
-      ``,
-      `TO:`,
-      `Compliance Officer / Nodal Grievance Officer`,
-      `${notice.vaspRecipient.name} (${notice.vaspRecipient.legalEntityName})`,
-      `FIU-IND Registration Number: ${notice.vaspRecipient.fiuNumber || "Pending Formal Registration"}`,
-      `Official Service Email: ${notice.vaspRecipient.complianceEmail}`,
-      ``,
-      `CASE PARTICULARS:`,
-      `CFCFRMS / NCRP Acknowledgement: ${notice.complaintDetails.ackNumber1930}`,
-      `Complainant / Victim: ${notice.complaintDetails.victimName}`,
-      `Loss Amount: INR ${notice.complaintDetails.stolenAmountInr.toLocaleString("en-IN")} (Equiv. ${notice.complaintDetails.stolenAmountUsdt.toLocaleString()} USDT)`,
-      `Initial Ingress Suspect Wallet: ${notice.complaintDetails.suspectInitialAddress}`,
-      ``,
-      `ON-CHAIN FORENSIC ATTRIBUTION TRAIL:`,
-      notice.forensicTrail.hopPath.join("  ───[Hop]───>  "),
-      ``,
-      `Destination Exchange Deposit Wallet: ${notice.forensicTrail.depositAddress}`,
-      `Transaction Ingestion Hash: ${notice.forensicTrail.depositTxHash}`,
-      `Amount Swept into Exchange Custody: ${notice.forensicTrail.depositAmountUsdt.toLocaleString()} USDT`,
-      `Internal Vault Consolidation Address: ${notice.forensicTrail.vaultSweptTo}`,
-      ``,
-      `STATUTORY DIRECTIVES (MANDATORY COMPLIANCE WITHIN 24 HOURS):`,
-      ...notice.statutoryDirectives.map((d, i) => `[${i + 1}] ${d}`),
-      ``,
-      `CRYPTOGRAPHIC INTEGRITY SEAL (SECTION 63 BHARATIYA SAKSHYA ADHINIYAM, 2023):`,
-      `SHA-256 State Hash: ${notice.cryptographicVerification.sha256Hash}`,
-      `Statutory Certificate: ${notice.cryptographicVerification.bsaSection63Clause}`,
-      ``,
-      `ISSUED UNDER SEAL OF:`,
-      `${notice.investigatingOfficer.name}`,
-      `${notice.investigatingOfficer.designation}`,
-      `${notice.investigatingOfficer.policeStation}, ${notice.investigatingOfficer.district}, ${notice.investigatingOfficer.state}`,
-      `Official Email: ${notice.investigatingOfficer.contactEmail}`,
-    ].join("\n");
-
+    const text = BnssNoticeGenerator.formatNoticeAsText(notice);
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -236,7 +196,9 @@ export default function LegalTab({ traceResult }: LegalTabProps) {
               <div style={{ textAlign: "right" }}>
                 <span style={{ color: "#94a3b8" }}>Recipient VASP:</span> <strong>{notice.vaspRecipient.name}</strong><br />
                 <span style={{ color: "#94a3b8" }}>Legal Entity:</span> {notice.vaspRecipient.legalEntityName}<br />
-                <span style={{ color: "#94a3b8" }}>FIU-IND Registration:</span> <strong style={{ color: "#10b981" }}>{notice.vaspRecipient.fiuNumber || "Registered"}</strong>
+                <span style={{ color: "#94a3b8" }}>FIU-IND Registration:</span> <strong style={{ color: "#10b981" }}>{notice.vaspRecipient.fiuNumber || "Registered"}</strong><br />
+                <span style={{ color: "#94a3b8" }}>Jurisdiction:</span> {notice.vaspRecipient.jurisdiction || "Registered Reporting Entity (FIU-IND)"}<br />
+                <span style={{ color: "#94a3b8" }}>Nodal Response:</span> <code style={{ fontSize: 11, color: "#38bdf8" }}>{notice.vaspRecipient.nodalOfficerEmail || notice.vaspRecipient.complianceEmail}</code>
               </div>
             </div>
 
@@ -244,6 +206,16 @@ export default function LegalTab({ traceResult }: LegalTabProps) {
             <div style={{ marginBottom: 20, fontSize: 13 }}>
               <strong>1. Case Particulars &amp; Crime Ingress:</strong><br />
               A formal complaint has been registered by victim <strong>{notice.complaintDetails.victimName}</strong> regarding stolen funds amounting to <strong>₹{notice.complaintDetails.stolenAmountInr.toLocaleString("en-IN")} ({notice.complaintDetails.stolenAmountUsdt.toLocaleString()} USDT)</strong>. Initial funds were traced to suspect ingress address <code style={{ color: "#38bdf8", background: "#0b1226", padding: "2px 6px", borderRadius: 4 }}>{notice.complaintDetails.suspectInitialAddress}</code>.
+              {notice.complaintDetails.bnsSections && notice.complaintDetails.bnsSections.length > 0 && (
+                <div style={{ marginTop: 8, padding: "8px 12px", background: "#060b18", borderRadius: 6, border: "1px solid #1e293b", fontSize: 11, color: "#94a3b8" }}>
+                  <span style={{ fontWeight: 700, color: "#cbd5e1" }}>Registered Penal Enactments (BNS 2023 / IT Act / PMLA):</span>
+                  <div style={{ marginTop: 4, display: "flex", flexDirection: "column", gap: 2 }}>
+                    {notice.complaintDetails.bnsSections.map((sec, i) => (
+                      <div key={i} style={{ color: "#38bdf8" }}>• {sec}</div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Forensic Attribution Path */}
@@ -259,6 +231,36 @@ export default function LegalTab({ traceResult }: LegalTabProps) {
               <div style={{ marginTop: 8, fontSize: 12, color: "#cbd5e1" }}>
                 The target funds entered your exchange deposit address <code>{notice.forensicTrail.depositAddress}</code> via transaction hash <code>{notice.forensicTrail.depositTxHash}</code> and were subsequently consolidated into internal vault <code>{notice.forensicTrail.vaultSweptTo}</code>.
               </div>
+
+              {/* Forensic Evidence Table */}
+              {notice.forensicTrail.transactionEvidenceTable && notice.forensicTrail.transactionEvidenceTable.length > 0 && (
+                <div style={{ marginTop: 12, overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11, textAlign: "left", background: "#060b18", borderRadius: 6, border: "1px solid #1e293b" }}>
+                    <thead>
+                      <tr style={{ background: "#0f172a", color: "#94a3b8", borderBottom: "1px solid #334155" }}>
+                        <th style={{ padding: "8px 10px" }}>Hop</th>
+                        <th style={{ padding: "8px 10px" }}>Source Wallet</th>
+                        <th style={{ padding: "8px 10px" }}>Destination Wallet</th>
+                        <th style={{ padding: "8px 10px" }}>Amount</th>
+                        <th style={{ padding: "8px 10px" }}>Network</th>
+                        <th style={{ padding: "8px 10px" }}>Transaction Hash (Immutable Record)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {notice.forensicTrail.transactionEvidenceTable.map((row, idx) => (
+                        <tr key={idx} style={{ borderBottom: "1px solid #1e293b" }}>
+                          <td style={{ padding: "8px 10px", fontWeight: 700, color: "#38bdf8" }}>#{row.hopIndex}</td>
+                          <td style={{ padding: "8px 10px", fontFamily: "monospace", color: "#cbd5e1" }}>{row.fromAddress.slice(0, 10)}...{row.fromAddress.slice(-6)}</td>
+                          <td style={{ padding: "8px 10px", fontFamily: "monospace", color: "#cbd5e1" }}>{row.toAddress.slice(0, 10)}...{row.toAddress.slice(-6)}</td>
+                          <td style={{ padding: "8px 10px", fontWeight: 600, color: "#10b981" }}>{row.amountUsd.toLocaleString()} {row.tokenSymbol || "USDT"}</td>
+                          <td style={{ padding: "8px 10px", color: "#94a3b8" }}>{row.network || "EVM"}</td>
+                          <td style={{ padding: "8px 10px", fontFamily: "monospace", fontSize: 10, color: "#f59e0b", wordBreak: "break-all" }}>{row.txHash}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
 
             {/* Statutory Directives */}
@@ -298,12 +300,14 @@ export default function LegalTab({ traceResult }: LegalTabProps) {
             <div style={{ borderTop: "1px solid #334155", paddingTop: 16, display: "flex", justifyContent: "space-between", fontSize: 12 }}>
               <div>
                 <strong>Investigating Officer:</strong> {notice.investigatingOfficer.name}<br />
-                {notice.investigatingOfficer.designation}<br />
-                {notice.investigatingOfficer.policeStation}, {notice.investigatingOfficer.district}
+                <strong>Rank / Role:</strong> {notice.investigatingOfficer.rank || notice.investigatingOfficer.designation}<br />
+                <strong>Station &amp; Command:</strong> {notice.investigatingOfficer.policeStation} · {notice.investigatingOfficer.agency || "I4C National Command"}<br />
+                <strong>Jurisdiction:</strong> {notice.investigatingOfficer.district}, {notice.investigatingOfficer.state}
               </div>
               <div style={{ textAlign: "right" }}>
                 <strong>Contact Email:</strong> {notice.investigatingOfficer.contactEmail}<br />
-                <strong>Helpline Ref:</strong> 1930 (CFCFRMS / I4C)
+                <strong>Helpline Ref:</strong> {notice.investigatingOfficer.contactPhone || "1930 (CFCFRMS / I4C)"}<br />
+                <span style={{ color: "#94a3b8" }}>Badge / PNO:</span> <code>{notice.investigatingOfficer.officerBadgeNumber || "DL-CY-9402"}</code>
               </div>
             </div>
           </div>

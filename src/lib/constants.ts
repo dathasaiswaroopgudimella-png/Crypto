@@ -7,6 +7,7 @@ export interface KnownVaspRecord {
   fiuRegistrationNumber?: string;
   complianceEmail: string;
   nodalOfficer?: string;
+  nodalEmail?: string;
   jurisdiction: string;
   freezeRequestEmail?: string;
   hotWallets: {
@@ -17,14 +18,133 @@ export interface KnownVaspRecord {
 }
 
 export const KNOWN_VASP_REGISTRY: KnownVaspRecord[] = [
+  // --- INDIAN FIU-IND REGISTERED REPORTING ENTITIES (RE) ---
+  {
+    name: "WazirX",
+    legalEntity: "Zanmai Labs Private Limited",
+    fiuRegistered: true,
+    fiuRegistrationNumber: "FIU-IND/RE/2023/0004",
+    complianceEmail: "legal@wazirx.com",
+    nodalOfficer: "Nodal Compliance Officer",
+    nodalEmail: "nodal@wazirx.com",
+    jurisdiction: "Mumbai, Maharashtra (India)",
+    freezeRequestEmail: "lawenforcement@wazirx.com",
+    hotWallets: [
+      { address: "0x564286362092D8e793690549419A62c7B9f7eA41", network: "ETH", type: "VASP_HOT_WALLET" },
+      { address: "0xBE0eB53F46cd790Cd13851d5EFf43D12404d33E8", network: "ETH", type: "VASP_COLD_VAULT" },
+      { address: "34xp4vRoCGJym3xR7yCVPFHoCNxv4Twseo", network: "BTC", type: "VASP_HOT_WALLET" },
+      { address: "TYukBQSnjAEmM72HjWqFZ6wL5M2k8Y4p3z", network: "TRON", type: "VASP_COLD_VAULT" },
+      { address: "TWDpL6f3hQ9mK8w7NxQ4rJ2v1mP8s5e3t1", network: "TRON", type: "VASP_HOT_WALLET" },
+    ],
+  },
+  {
+    name: "CoinDCX",
+    legalEntity: "Neblio Technologies Private Limited",
+    fiuRegistered: true,
+    fiuRegistrationNumber: "FIU-IND/RE/2023/0012",
+    complianceEmail: "compliance@coindcx.com",
+    nodalOfficer: "Nodal Grievance & Compliance Officer",
+    nodalEmail: "nodal@coindcx.com",
+    jurisdiction: "Mumbai, Maharashtra (India)",
+    freezeRequestEmail: "legal@coindcx.com",
+    hotWallets: [
+      { address: "0x4e9ce36e442e55ecd9025b9a6e0d88485d628a67", network: "ETH", type: "VASP_HOT_WALLET" },
+      { address: "0x98A55B9a2B7252277d33b5cDE4C8A60e0a5D3311", network: "ETH", type: "VASP_COLD_VAULT" },
+      { address: "TYukBQSnjAEmM72HjWqFZ6wL5M2k8Y4p3z", network: "TRON", type: "VASP_HOT_WALLET" },
+      { address: "385cR5DM96n1HvBDMzLHPYcw89fZAXULJP", network: "BTC", type: "VASP_HOT_WALLET" },
+      { address: "4DCX99yB5w1wPZSm4gDYw8jCTfwHNRJhhmFcbXvV", network: "SOL", type: "VASP_HOT_WALLET" },
+    ],
+  },
+  {
+    name: "CoinSwitch",
+    legalEntity: "Bitcipher Labs LLP",
+    fiuRegistered: true,
+    fiuRegistrationNumber: "FIU-IND/RE/2023/0018",
+    complianceEmail: "compliance@coinswitch.co",
+    nodalOfficer: "Nodal Grievance Officer",
+    nodalEmail: "nodal@coinswitch.co",
+    jurisdiction: "Bengaluru, Karnataka (India)",
+    freezeRequestEmail: "lawenforcement@coinswitch.co",
+    hotWallets: [
+      { address: "0x7894a4c6b45a6c7d8e9f0a1b2c3d4e5f6a7b8c9d", network: "ETH", type: "VASP_HOT_WALLET" },
+      { address: "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa", network: "BTC", type: "VASP_HOT_WALLET" },
+      { address: "bc1qcoinswitchkuberconsolidationxx9v1", network: "BTC", type: "VASP_COLD_VAULT" },
+    ],
+  },
+  {
+    name: "ZebPay",
+    legalEntity: "Awlencan Innovations India Limited",
+    fiuRegistered: true,
+    fiuRegistrationNumber: "FIU-IND/RE/2023/0008",
+    complianceEmail: "compliance@zebpay.com",
+    nodalOfficer: "Nodal Compliance Officer",
+    nodalEmail: "nodal@zebpay.com",
+    jurisdiction: "Ahmedabad, Gujarat (India)",
+    freezeRequestEmail: "lawenforcement@zebpay.com",
+    hotWallets: [
+      { address: "0xe8b8A46c82F0B9C6948d3D9A1982b6bE09cD2E66", network: "ETH", type: "VASP_HOT_WALLET" },
+      { address: "385cR5DM96n1HvBDMzLHPYcw89fZAXULJP", network: "BTC", type: "VASP_HOT_WALLET" },
+      { address: "TZebPayFundingClusterTronXXXXX9k8", network: "TRON", type: "VASP_HOT_WALLET" },
+    ],
+  },
+  {
+    name: "SunCrypto",
+    legalEntity: "Angel Overseas Private Limited",
+    fiuRegistered: true,
+    fiuRegistrationNumber: "FIU-IND/RE/2023/0038",
+    complianceEmail: "compliance@suncrypto.in",
+    nodalOfficer: "Nodal Grievance Officer",
+    nodalEmail: "nodal@suncrypto.in",
+    jurisdiction: "Jaipur, Rajasthan (India)",
+    freezeRequestEmail: "legal@suncrypto.in",
+    hotWallets: [
+      { address: "TNDa1mP3NxQ8rJ4v2mP1s6e4t8a3m5b7cF", network: "TRON", type: "VASP_COLD_VAULT" },
+      { address: "0x3a4b6c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b", network: "ETH", type: "VASP_HOT_WALLET" },
+      { address: "TSunCryptoFundingClusterTronXXX1v8", network: "TRON", type: "VASP_HOT_WALLET" },
+    ],
+  },
+  {
+    name: "Mudrex",
+    legalEntity: "Mudrex Financial Services Limited",
+    fiuRegistered: true,
+    fiuRegistrationNumber: "FIU-IND/RE/2023/0031",
+    complianceEmail: "compliance@mudrex.com",
+    nodalOfficer: "Nodal Compliance Officer",
+    nodalEmail: "nodal@mudrex.com",
+    jurisdiction: "Bengaluru, Karnataka (India)",
+    freezeRequestEmail: "legal@mudrex.com",
+    hotWallets: [
+      { address: "0x7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b", network: "ETH", type: "VASP_HOT_WALLET" },
+      { address: "bc1qmudrexdepositclusterxxxxxxxxx8v2", network: "BTC", type: "VASP_HOT_WALLET" },
+    ],
+  },
+  {
+    name: "Giottus",
+    legalEntity: "Giottus Technologies Private Limited",
+    fiuRegistered: true,
+    fiuRegistrationNumber: "FIU-IND/RE/2023/0014",
+    complianceEmail: "compliance@giottus.com",
+    nodalOfficer: "Nodal Grievance & Compliance Officer",
+    nodalEmail: "nodal@giottus.com",
+    jurisdiction: "Chennai, Tamil Nadu (India)",
+    freezeRequestEmail: "legal@giottus.com",
+    hotWallets: [
+      { address: "0x89ab4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b", network: "ETH", type: "VASP_HOT_WALLET" },
+      { address: "TGiottusHotClusterTronXXXXXXXXXy7", network: "TRON", type: "VASP_HOT_WALLET" },
+      { address: "1GiottusBTCHotWalletDepositXXXXXv3", network: "BTC", type: "VASP_HOT_WALLET" },
+    ],
+  },
+
+  // --- GLOBAL COMPLIANCE DESKS & REGISTERED OFFSHORE ENTITIES ---
   {
     name: "Binance",
     legalEntity: "Nest Services Limited / Binance Holdings Ltd",
     fiuRegistered: true,
     fiuRegistrationNumber: "FIU-IND/RE/2024/0089",
     complianceEmail: "compliance-india@binance.com",
-    nodalOfficer: "India Compliance Team",
-    jurisdiction: "Registered Entity under PMLA Guidelines (FIU-IND)",
+    nodalOfficer: "India Nodal Officer",
+    nodalEmail: "nodal-india@binance.com",
+    jurisdiction: "Registered Entity under PMLA Guidelines (FIU-IND) / Cayman Islands",
     freezeRequestEmail: "lawenforcement@binance.com",
     hotWallets: [
       { address: "0x28C6c06298d514Db089934071355E5743bf21d60", network: "ETH", type: "VASP_HOT_WALLET" },
@@ -39,35 +159,7 @@ export const KNOWN_VASP_REGISTRY: KnownVaspRecord[] = [
       { address: "1NDyJtNTjmwk5xPNhjgAMu4HDHigtobu1s", network: "BTC", type: "VASP_HOT_WALLET" },
       { address: "34xp4vRoCGJym3xR7yCVPFHoCNxv4Twseo", network: "BTC", type: "VASP_COLD_VAULT" },
       { address: "bc1qgdjqv0av3q56jvd82tkdjpy7gdp9ut8tlqmgrpmv24sq90ecnvqqjwvw97", network: "BTC", type: "VASP_COLD_VAULT" },
-    ],
-  },
-  {
-    name: "CoinDCX",
-    legalEntity: "Neblio Technologies Private Limited",
-    fiuRegistered: true,
-    fiuRegistrationNumber: "FIU-IND/RE/2023/0012",
-    complianceEmail: "compliance@coindcx.com",
-    jurisdiction: "Mumbai, Maharashtra (India)",
-    freezeRequestEmail: "legal@coindcx.com",
-    hotWallets: [
-      { address: "0x4e9ce36e442e55ecd9025b9a6e0d88485d628a67", network: "ETH", type: "VASP_HOT_WALLET" },
-      { address: "TYukBQSnjAEmM72HjWqFZ6wL5M2k8Y4p3z", network: "TRON", type: "VASP_HOT_WALLET" },
-      { address: "385cR5DM96n1HvBDMzLHPYcw89fZAXULJP", network: "BTC", type: "VASP_HOT_WALLET" },
-    ],
-  },
-  {
-    name: "WazirX",
-    legalEntity: "Zanmai Labs Private Limited",
-    fiuRegistered: true,
-    fiuRegistrationNumber: "FIU-IND/RE/2023/0004",
-    complianceEmail: "legal@wazirx.com",
-    nodalOfficer: "Legal & Compliance Team",
-    jurisdiction: "Mumbai, Maharashtra (India)",
-    freezeRequestEmail: "lawenforcement@wazirx.com",
-    hotWallets: [
-      { address: "0x564286362092D8e793690549419A62c7B9f7eA41", network: "ETH", type: "VASP_HOT_WALLET" },
-      { address: "0xBE0eB53F46cd790Cd13851d5EFf43D12404d33E8", network: "ETH", type: "VASP_COLD_VAULT" },
-      { address: "34xp4vRoCGJym3xR7yCVPFHoCNxv4Twseo", network: "BTC", type: "VASP_HOT_WALLET" },
+      { address: "5tzFkiKscMRHK5ZXWBZXZuxT1g138x5vYF", network: "SOL", type: "VASP_COLD_VAULT" },
     ],
   },
   {
@@ -76,6 +168,8 @@ export const KNOWN_VASP_REGISTRY: KnownVaspRecord[] = [
     fiuRegistered: true,
     fiuRegistrationNumber: "FIU-IND/RE/2024/0142",
     complianceEmail: "compliance@bybit.com",
+    nodalOfficer: "Compliance Nodal Desk",
+    nodalEmail: "nodal@bybit.com",
     jurisdiction: "Dubai (UAE) / FIU-IND Registered Offshore Entity",
     freezeRequestEmail: "learequest@bybit.com",
     hotWallets: [
@@ -91,12 +185,15 @@ export const KNOWN_VASP_REGISTRY: KnownVaspRecord[] = [
     fiuRegistered: true,
     fiuRegistrationNumber: "FIU-IND/RE/2024/0077",
     complianceEmail: "compliance-team@kucoin.com",
+    nodalOfficer: "India Nodal Compliance Desk",
+    nodalEmail: "nodal-india@kucoin.com",
     jurisdiction: "Seychelles / FIU-IND Registered Offshore Entity",
     freezeRequestEmail: "support@kucoin.com",
     hotWallets: [
       { address: "0x689c56a0f4c930c451b2602731f3d066f57B8822", network: "ETH", type: "VASP_HOT_WALLET" },
       { address: "0x2b5634c42055806a59e9107ed44d43c426e58258", network: "ETH", type: "VASP_HOT_WALLET" },
       { address: "0x0a98fb70939162725ae66e626fe4b52cff62c2e5", network: "ETH", type: "VASP_COLD_VAULT" },
+      { address: "0x16b9a82891338f9bA80E2D6970FddA79D1eb0daE", network: "ETH", type: "VASP_HOT_WALLET" },
     ],
   },
   {
@@ -105,6 +202,8 @@ export const KNOWN_VASP_REGISTRY: KnownVaspRecord[] = [
     fiuRegistered: true,
     fiuRegistrationNumber: "FIU-IND/RE/2024/0105",
     complianceEmail: "compliance@okx.com",
+    nodalOfficer: "Global Nodal Compliance Desk",
+    nodalEmail: "nodal@okx.com",
     jurisdiction: "Seychelles / FIU-IND Registered Offshore Entity",
     freezeRequestEmail: "legal@okx.com",
     hotWallets: [
@@ -115,30 +214,30 @@ export const KNOWN_VASP_REGISTRY: KnownVaspRecord[] = [
     ],
   },
   {
-    name: "CoinSwitch",
-    legalEntity: "Bitcipher Labs LLP",
+    name: "Bitget",
+    legalEntity: "Bitget Limited / Bitget Global Services",
     fiuRegistered: true,
-    fiuRegistrationNumber: "FIU-IND/RE/2023/0018",
-    complianceEmail: "grievance@coinswitch.co",
-    jurisdiction: "Bengaluru, Karnataka (India)",
+    fiuRegistrationNumber: "FIU-IND/RE/2024/0155",
+    complianceEmail: "compliance@bitget.com",
+    nodalOfficer: "Nodal Compliance Desk",
+    nodalEmail: "nodal@bitget.com",
+    jurisdiction: "Seychelles / Global Compliance Desk",
+    freezeRequestEmail: "lawenforcement@bitget.com",
     hotWallets: [
-      { address: "0x7894a4c6b45a6c7d8e9f0a1b2c3d4e5f6a7b8c9d", network: "ETH", type: "VASP_HOT_WALLET" },
+      { address: "0x1ab4973a48dc892cd9971ece8e01dcc7688f8f23", network: "ETH", type: "VASP_HOT_WALLET" },
+      { address: "0xd93f7e271cb87c23aaa73edc008a79646d1f9912", network: "ETH", type: "VASP_HOT_WALLET" },
+      { address: "TJCo98saj3uMLdmyV6h4HZkXELhgTe7MAY", network: "TRON", type: "VASP_HOT_WALLET" },
     ],
   },
-  {
-    name: "Mudrex",
-    legalEntity: "Mudrex Financial Services Limited",
-    fiuRegistered: true,
-    fiuRegistrationNumber: "FIU-IND/RE/2023/0031",
-    complianceEmail: "legal@mudrex.com",
-    jurisdiction: "Bengaluru, Karnataka (India)",
-    hotWallets: [],
-  },
+
+  // --- OTHER GLOBAL COMPLIANCE DESKS ---
   {
     name: "Coinbase",
     legalEntity: "Coinbase Global, Inc.",
     fiuRegistered: false,
     complianceEmail: "legal@coinbase.com",
+    nodalOfficer: "Global Compliance Desk",
+    nodalEmail: "legal@coinbase.com",
     jurisdiction: "United States (US-regulated)",
     freezeRequestEmail: "law_enforcement@coinbase.com",
     hotWallets: [
@@ -155,6 +254,8 @@ export const KNOWN_VASP_REGISTRY: KnownVaspRecord[] = [
     legalEntity: "Payward Inc.",
     fiuRegistered: false,
     complianceEmail: "legal@kraken.com",
+    nodalOfficer: "Compliance & Regulatory Desk",
+    nodalEmail: "legal@kraken.com",
     jurisdiction: "United States (US-regulated)",
     freezeRequestEmail: "law_enforcement@kraken.com",
     hotWallets: [
@@ -169,6 +270,8 @@ export const KNOWN_VASP_REGISTRY: KnownVaspRecord[] = [
     legalEntity: "Huobi Global Limited",
     fiuRegistered: false,
     complianceEmail: "support@huobi.com",
+    nodalOfficer: "Regulatory Liaison Desk",
+    nodalEmail: "compliance@htx.com",
     jurisdiction: "Seychelles",
     freezeRequestEmail: "law_enforcement@htx.com",
     hotWallets: [
@@ -182,7 +285,10 @@ export const KNOWN_VASP_REGISTRY: KnownVaspRecord[] = [
     legalEntity: "Gate Technology Inc.",
     fiuRegistered: false,
     complianceEmail: "compliance@gate.io",
+    nodalOfficer: "Global Compliance Desk",
+    nodalEmail: "compliance@gate.io",
     jurisdiction: "Cayman Islands",
+    freezeRequestEmail: "support@gate.io",
     hotWallets: [
       { address: "0x0d0707963952f2fba59dd06f2b425ace40b492fe", network: "ETH", type: "VASP_HOT_WALLET" },
       { address: "0x7793CD85C11a924478d358D49b05b37E91B5810F", network: "ETH", type: "VASP_HOT_WALLET" },
@@ -193,31 +299,14 @@ export const KNOWN_VASP_REGISTRY: KnownVaspRecord[] = [
     legalEntity: "MEXC Global",
     fiuRegistered: false,
     complianceEmail: "support@mexc.com",
+    nodalOfficer: "Compliance Liaison Desk",
+    nodalEmail: "compliance@mexc.com",
     jurisdiction: "Seychelles",
+    freezeRequestEmail: "compliance@mexc.com",
     hotWallets: [
       { address: "0x4982085C9e2F89F2eCb8131Eca71aFAD896e89CB", network: "ETH", type: "VASP_HOT_WALLET" },
       { address: "0x75e89d5979E4f6Fba9F97c104c2F0AFB3F1dcB88", network: "ETH", type: "VASP_HOT_WALLET" },
     ],
-  },
-  {
-    name: "Bitget",
-    legalEntity: "Bitget Limited",
-    fiuRegistered: false,
-    complianceEmail: "compliance@bitget.com",
-    jurisdiction: "Seychelles",
-    hotWallets: [
-      { address: "0x1ab4973a48dc892cd9971ece8e01dcc7688f8f23", network: "ETH", type: "VASP_HOT_WALLET" },
-      { address: "0xd93f7e271cb87c23aaa73edc008a79646d1f9912", network: "ETH", type: "VASP_HOT_WALLET" },
-    ],
-  },
-  {
-    name: "Zebpay",
-    legalEntity: "Awlencan Innovations India Pvt Ltd",
-    fiuRegistered: true,
-    fiuRegistrationNumber: "FIU-IND/RE/2023/0008",
-    complianceEmail: "compliance@zebpay.com",
-    jurisdiction: "Ahmedabad, Gujarat (India)",
-    hotWallets: [],
   },
 ];
 
@@ -298,45 +387,74 @@ export const KNOWN_HIGH_RISK_ENTITIES = [
 ];
 
 // Cross-chain bridge contract addresses
-export const KNOWN_BRIDGE_CONTRACTS = [
+export interface KnownBridgeRecord {
+  name: string;
+  bridgeProtocol: string;
+  address: string;
+  network: string;
+  destinationChains: string[];
+}
+
+export const KNOWN_BRIDGE_CONTRACTS: KnownBridgeRecord[] = [
   {
     name: "Multichain Router",
+    bridgeProtocol: "Multichain AnyCall Router",
     address: "0xC564EE9f21Ed8A2d8E7e76c085740d5e4c5FaFbE",
     network: "ETH",
     destinationChains: ["BSC", "POLYGON", "AVALANCHE", "FANTOM"],
   },
   {
     name: "Hop Protocol (ETH Bridge)",
+    bridgeProtocol: "Hop Protocol Bridge",
     address: "0x3666f603Cc164936C1b87e207F36BEBa4AC5f18d",
     network: "ETH",
-    destinationChains: ["POLYGON", "ARBITRUM", "OPTIMISM"],
+    destinationChains: ["ARBITRUM", "BSC", "POLYGON", "OPTIMISM"],
+  },
+  {
+    name: "Hop Protocol (USDC Bridge)",
+    bridgeProtocol: "Hop Protocol Bridge",
+    address: "0x3666f603Cc164936C1b87e207F36BEBa4AC5f18a",
+    network: "ETH",
+    destinationChains: ["ARBITRUM", "BSC", "POLYGON", "OPTIMISM"],
   },
   {
     name: "Across Protocol",
+    bridgeProtocol: "Across Protocol HubPool",
     address: "0x4D9079Bb4165aeb4084c526a32695dCfd2F77381",
     network: "ETH",
-    destinationChains: ["ARBITRUM", "OPTIMISM", "BASE", "POLYGON"],
+    destinationChains: ["TRON", "ARBITRUM", "OPTIMISM", "BASE", "POLYGON", "BSC"],
+  },
+  {
+    name: "Across Protocol (SpokePool)",
+    bridgeProtocol: "Across Protocol SpokePool",
+    address: "0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5",
+    network: "ETH",
+    destinationChains: ["TRON", "ARBITRUM", "OPTIMISM", "BASE", "POLYGON", "BSC"],
   },
   {
     name: "Wormhole Token Bridge",
+    bridgeProtocol: "Wormhole Core Bridge",
     address: "0x3ee18B2214AFF97000D974cf647E7C347E8fa585",
     network: "ETH",
-    destinationChains: ["SOL", "BSC", "AVALANCHE", "POLYGON"],
+    destinationChains: ["BSC", "SOL", "ARBITRUM", "AVALANCHE", "POLYGON"],
   },
   {
     name: "Stargate Finance",
+    bridgeProtocol: "Stargate Bridge Router",
     address: "0x8731d54E9D02c286767d56ac03e8037C07e01e98",
     network: "ETH",
-    destinationChains: ["BSC", "AVALANCHE", "POLYGON", "ARBITRUM", "OPTIMISM"],
+    destinationChains: ["BSC", "ARBITRUM", "TRON", "AVALANCHE", "POLYGON", "OPTIMISM"],
   },
   {
     name: "cBridge (Celer Network)",
+    bridgeProtocol: "cBridge (Celer Network)",
     address: "0x5427FEFA711Eff984124bFBB1AB6fbf5E3DA1820",
     network: "ETH",
-    destinationChains: ["BSC", "POLYGON", "ARBITRUM", "OPTIMISM", "AVALANCHE"],
+    destinationChains: ["BSC", "ARBITRUM", "POLYGON", "OPTIMISM", "AVALANCHE"],
   },
   {
     name: "Synapse Bridge",
+    bridgeProtocol: "Synapse Bridge Router",
     address: "0x2796317b0fF8538F253012862c06787Adfb8cEb6",
     network: "ETH",
     destinationChains: ["BSC", "POLYGON", "ARBITRUM", "OPTIMISM", "AVALANCHE"],

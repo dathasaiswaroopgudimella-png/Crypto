@@ -665,7 +665,7 @@ export default function VaspTab({ onTraceAddress, onRequestNoticeForVasp }: Vasp
 
             <div style={{ background: "#060b18", padding: 14, borderRadius: 8, border: "1px solid #1e2c4a" }}>
               <div style={{ fontSize: 12, color: "#94a3b8", textTransform: "uppercase", fontWeight: 700, marginBottom: 4 }}>Protocol / Router</div>
-              <div style={{ fontSize: 13, color: "#38bdf8", fontWeight: 600 }}>{selectedBridge.bridgeProtocol}</div>
+              <div style={{ fontSize: 13, color: "#38bdf8", fontWeight: 600 }}>{selectedBridge.name}</div>
               <div style={{ fontSize: 12, color: "#94a3b8", textTransform: "uppercase", fontWeight: 700, marginTop: 10, marginBottom: 4 }}>Router Contract Address</div>
               <div style={{ fontFamily: "monospace", fontSize: 12, color: "#cbd5e1", wordBreak: "break-all" }}>{selectedBridge.address}</div>
             </div>

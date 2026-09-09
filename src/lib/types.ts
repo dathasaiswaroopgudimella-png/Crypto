@@ -127,6 +127,9 @@ export interface ForensicNode {
     exchangeName: string;
     fiuRegistrationNumber?: string;
   };
+  isRootNode?: boolean;
+  isTerminal?: boolean;
+  txCount?: number;
 }
 
 export interface ForensicEdge {
@@ -194,6 +197,7 @@ export interface GraphTraceResult {
   highRiskEntitiesFound: string[];
   sha256StateHash: string;
   generatedAtUtc: string;
+  isTerminalUnspentWallet?: boolean;
 }
 
 export interface Section94NoticeData {
@@ -201,12 +205,16 @@ export interface Section94NoticeData {
   date: string;
   investigatingOfficer: {
     name: string;
+    rank?: string;
     designation: string;
     policeStation: string;
+    agency?: string;
     district: string;
     state: string;
     contactEmail: string;
     contactPhone: string;
+    officerBadgeNumber?: string;
+    generalDiaryEntry?: string;
   };
   complaintDetails: {
     ackNumber1930: string;
@@ -216,6 +224,7 @@ export interface Section94NoticeData {
     stolenAmountUsdt: number;
     sourceBankOrAccount: string;
     suspectInitialAddress: string;
+    bnsSections?: string[];
   };
   vaspRecipient: {
     name: string;
@@ -223,6 +232,8 @@ export interface Section94NoticeData {
     legalEntityName: string;
     complianceEmail: string;
     nodalOfficerName?: string;
+    nodalOfficerEmail?: string;
+    jurisdiction?: string;
   };
   forensicTrail: {
     depositAddress: string;
@@ -230,14 +241,29 @@ export interface Section94NoticeData {
     depositAmountUsdt: number;
     depositTimestampUtc: string;
     vaultSweptTo: string;
+    vaultSweepTxHash?: string;
     hopPath: string[];
     detectedPatterns: string[];
     riskScore: number;
+    transactionEvidenceTable?: Array<{
+      hopIndex: number;
+      fromAddress: string;
+      toAddress: string;
+      txHash: string;
+      amountUsd: number;
+      timestampUtc: string;
+      tokenSymbol?: string;
+      network?: string;
+      actionDescription?: string;
+    }>;
+    formattedTableText?: string;
   };
   statutoryDirectives: string[];
   cryptographicVerification: {
     sha256Hash: string;
     extractionBlockNumber: number;
     bsaSection63Clause: string;
+    verifiedAtUtc?: string;
+    ledgerSource?: string;
   };
 }
