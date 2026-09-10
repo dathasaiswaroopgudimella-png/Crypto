@@ -62,44 +62,84 @@ const NODE_THEMES: Record<string, { bg: string; border: string; text: string; gl
   UNKNOWN: { bg: "#0b1226", border: "#475569", text: "#cbd5e1", glow: "rgba(71, 85, 105, 0.2)", badge: "UNRESOLVED NODE" },
 };
 
-function ForensicNodeCard({ data }: { data: ForensicNode }) {
+interface ForensicNodeCardData extends ForensicNode {
+  isSelected?: boolean;
+  isCriticalPath?: boolean;
+  isDimmed?: boolean;
+  onSelect?: () => void;
+}
+
+function ForensicNodeCard({ data }: { data: ForensicNodeCardData }) {
   const theme = (data && data.entityType && NODE_THEMES[data.entityType]) || NODE_THEMES.UNKNOWN;
   const rawAddr = String(data?.fullAddress || data?.id || "");
   const shortAddr = rawAddr.length > 16 ? `${rawAddr.slice(0, 10)}...${rawAddr.slice(-6)}` : rawAddr;
   const inflowNum = Number.isFinite(data?.totalInflowUsd) ? data.totalInflowUsd : 0;
   const balanceNum = Number.isFinite(data?.balanceUsd) ? data.balanceUsd : 0;
 
+  const isSelected = Boolean(data?.isSelected);
+  const isCritical = Boolean(data?.isCriticalPath);
+  const isDimmed = Boolean(data?.isDimmed);
+
+  let borderColor = theme.border;
+  let shadowGlow = theme.glow;
+  let borderWidth = 2;
+
+  if (isSelected) {
+    borderColor = "#38bdf8";
+    shadowGlow = "rgba(56, 189, 248, 0.85)";
+    borderWidth = 3;
+  } else if (isCritical) {
+    borderColor = "#ef4444";
+    shadowGlow = "rgba(239, 68, 68, 0.8)";
+    borderWidth = 3;
+  }
+
   return (
-    <div style={{
-      background: theme.bg,
-      border: `2px solid ${theme.border}`,
-      borderRadius: 12,
-      padding: "14px 16px",
-      minWidth: 260,
-      maxWidth: 290,
-      boxShadow: `0 0 24px ${theme.glow}`,
-      position: "relative",
-      cursor: "pointer",
-    }}>
-      <Handle type="target" position={Position.Left} style={{ background: theme.border, width: 8, height: 8 }} />
+    <div
+      onClick={data?.onSelect}
+      style={{
+        background: theme.bg,
+        border: `${borderWidth}px solid ${borderColor}`,
+        borderRadius: 12,
+        padding: "14px 16px",
+        minWidth: 260,
+        maxWidth: 290,
+        boxShadow: `0 0 24px ${shadowGlow}`,
+        position: "relative",
+        cursor: "pointer",
+        opacity: isDimmed ? 0.25 : 1,
+        filter: isDimmed ? "grayscale(55%)" : "none",
+        transform: isSelected ? "scale(1.03)" : "none",
+        transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+      }}
+    >
+      <Handle type="target" position={Position.Left} style={{ background: borderColor, width: 8, height: 8 }} />
 
       {/* Header Badge */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <div style={{
             width: 7, height: 7, borderRadius: "50%",
-            background: theme.border,
-            boxShadow: `0 0 8px ${theme.border}`,
+            background: borderColor,
+            boxShadow: `0 0 8px ${borderColor}`,
           }} />
-          <span style={{ fontSize: 10, fontWeight: 800, color: theme.text, letterSpacing: "0.06em", textTransform: "uppercase" }}>
-            {theme.badge}
+          <span style={{
+            fontSize: 10,
+            fontWeight: 800,
+            color: isSelected ? "#38bdf8" : (isCritical ? "#f87171" : theme.text),
+            letterSpacing: "0.06em",
+            textTransform: "uppercase"
+          }}>
+            {isSelected ? "INSPECTED TARGET" : (isCritical ? "CRITICAL PATH" : theme.badge)}
           </span>
         </div>
 
         <span style={{
           fontSize: 10, padding: "2px 6px", borderRadius: 4,
-          background: "rgba(14, 165, 233, 0.15)", color: "#38bdf8",
-          border: "1px solid rgba(14, 165, 233, 0.3)", fontWeight: 800,
+          background: isSelected ? "rgba(56, 189, 248, 0.25)" : (isCritical ? "rgba(239, 68, 68, 0.2)" : "rgba(14, 165, 233, 0.15)"),
+          color: isSelected ? "#38bdf8" : (isCritical ? "#fca5a5" : "#38bdf8"),
+          border: `1px solid ${isSelected ? "#38bdf8" : (isCritical ? "#ef4444" : "rgba(14, 165, 233, 0.3)")}`,
+          fontWeight: 800,
         }}>
           {data?.network || "CHAIN"}
         </span>
@@ -111,7 +151,7 @@ function ForensicNodeCard({ data }: { data: ForensicNode }) {
       </div>
 
       {/* Address */}
-      <div style={{ fontFamily: "monospace", fontSize: 10, color: "#94a3b8", marginBottom: 10 }}>
+      <div style={{ fontFamily: "monospace", fontSize: 10, color: isSelected ? "#e2e8f0" : "#94a3b8", marginBottom: 10 }}>
         {shortAddr}
       </div>
 
@@ -143,7 +183,7 @@ function ForensicNodeCard({ data }: { data: ForensicNode }) {
         </div>
       )}
 
-      <Handle type="source" position={Position.Right} style={{ background: theme.border, width: 8, height: 8 }} />
+      <Handle type="source" position={Position.Right} style={{ background: borderColor, width: 8, height: 8 }} />
     </div>
   );
 }
@@ -166,6 +206,18 @@ function ViewportAutoFitter({ triggerKey }: { triggerKey: string }) {
   return null;
 }
 
+function CameraController({ targetPosition }: { targetPosition: { x: number; y: number; ts?: number } | null }) {
+  const { setCenter } = useReactFlow();
+
+  useEffect(() => {
+    if (targetPosition) {
+      setCenter(targetPosition.x + 130, targetPosition.y + 70, { duration: 500, zoom: 1.05 });
+    }
+  }, [targetPosition, setCenter]);
+
+  return null;
+}
+
 type ViewMode = "STUDIO" | "FOCUS_PATH" | "SPLIT_RADAR";
 type RoleFilter = "ALL" | "SUSPECT" | "MULE_WALLET" | "BRIDGE_CONTRACT" | "MIXER_OBFUSCATION" | "VASP";
 
@@ -174,6 +226,7 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [selectedNode, setSelectedNode] = useState<ForensicNode | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<ForensicEdge | null>(null);
+  const [targetNodePosition, setTargetNodePosition] = useState<{ x: number; y: number; ts?: number } | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("STUDIO");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("ALL");
   const [isFocusPathActive, setIsFocusPathActive] = useState(false);
@@ -181,7 +234,22 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
   const [copiedHash, setCopiedHash] = useState(false);
 
-  // Synchronize React Flow nodes whenever traceResult, viewMode, or roleFilter changes
+  // Automatically select the root or queried node when a new traceResult arrives
+  useEffect(() => {
+    if (!traceResult || traceResult.nodes.length === 0) {
+      setSelectedNode(null);
+      setSelectedEdge(null);
+      return;
+    }
+    const targetKey = (traceResult.rootAddress || "").toLowerCase();
+    const defaultNode = traceResult.nodes.find(
+      n => n.fullAddress.toLowerCase() === targetKey || n.id.toLowerCase() === targetKey
+    ) || traceResult.nodes[0];
+    setSelectedNode(defaultNode);
+    setSelectedEdge(null);
+  }, [traceResult]);
+
+  // Synchronize React Flow nodes whenever traceResult, viewMode, roleFilter, or selection changes
   useEffect(() => {
     if (!traceResult) {
       setNodes([]);
@@ -196,12 +264,9 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
     const hopWidth = 340;
     const hopHeights: Record<number, number> = {};
 
-    // Filter nodes based on role or focus path
+    // Filter nodes based on role (preserving complete topological canvas during Focus Path)
     let filteredNodes = traceResult.nodes;
-    if (isFocusPathActive && traceResult.focusPathNodeIds && traceResult.focusPathNodeIds.length > 0) {
-      const focusSet = new Set(traceResult.focusPathNodeIds.map(id => id.toLowerCase()));
-      filteredNodes = filteredNodes.filter(n => focusSet.has(n.fullAddress.toLowerCase()) || focusSet.has(n.id.toLowerCase()));
-    } else if (roleFilter !== "ALL") {
+    if (roleFilter !== "ALL") {
       if (roleFilter === "VASP") {
         filteredNodes = filteredNodes.filter(n =>
           n.entityType === "VASP_HOT_WALLET" ||
@@ -213,6 +278,9 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
       }
     }
 
+    const criticalNodeSet = new Set((traceResult.focusPathNodeIds || []).map(id => id.toLowerCase()));
+    const criticalEdgeSet = new Set(traceResult.focusPathEdgeIds || []);
+
     const rfNodes: Node[] = filteredNodes.map((node) => {
       const hop = node.hopDistance;
       const countAtHop = hopHeights[hop] || 0;
@@ -221,11 +289,24 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
       const posX = startX + hop * hopWidth;
       const posY = startY + countAtHop * 190;
 
+      const isNodeSelected = selectedNode?.id === node.id || selectedNode?.fullAddress?.toLowerCase() === node.fullAddress?.toLowerCase();
+      const isCritical = criticalNodeSet.has(node.fullAddress?.toLowerCase()) || criticalNodeSet.has(node.id?.toLowerCase());
+
       return {
         id: node.id,
         type: "customForensicNode",
         position: { x: posX, y: posY },
-        data: node,
+        data: {
+          ...node,
+          isSelected: isNodeSelected,
+          isCriticalPath: isFocusPathActive && isCritical,
+          isDimmed: isFocusPathActive && !isCritical,
+          onSelect: () => {
+            setSelectedNode(node);
+            setSelectedEdge(null);
+            setTargetNodePosition({ x: posX, y: posY });
+          },
+        },
       };
     });
 
@@ -247,10 +328,6 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
     }
 
     let edgeList = Array.from(edgeMap.values());
-    if (isFocusPathActive && traceResult.focusPathEdgeIds && traceResult.focusPathEdgeIds.length > 0) {
-      const focusEdgeSet = new Set(traceResult.focusPathEdgeIds);
-      edgeList = edgeList.filter(e => focusEdgeSet.has(e.id));
-    }
 
     // Strictly ensure both source and target nodes exist in the currently visible node set (case-resilient)
     const nodeMapById = new Map(filteredNodes.map(n => [n.id.toLowerCase(), n.id]));
@@ -269,21 +346,46 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
       const src = String(edge.source || "");
       const tgt = String(edge.target || "");
       const amt = Number.isFinite(edge.amount) ? edge.amount : 0;
+      const isEdgeCritical =
+        criticalEdgeSet.has(edge.id) ||
+        criticalEdgeSet.has(edge.id.toLowerCase()) ||
+        (edge.txHash && criticalEdgeSet.has(edge.txHash.toLowerCase())) ||
+        (criticalNodeSet.has(src.toLowerCase()) && criticalNodeSet.has(tgt.toLowerCase()));
+      const isEdgeDimmed = isFocusPathActive && !isEdgeCritical;
+
+      let edgeColor = edge.isSweeping ? "#10b981" : edge.isBridgeTx ? "#06b6d4" : "#38bdf8";
+      if (isFocusPathActive) {
+        edgeColor = isEdgeCritical ? "#ef4444" : "#475569";
+      }
+
       return {
         id: `rf-${idx}-${src.slice(0, 6)}-${tgt.slice(0, 6)}`,
         source: edge.source,
         target: edge.target,
         label: amt > 0 ? `$${amt.toLocaleString()} ${edge.tokenSymbol || ""}` : (edge.tokenSymbol || ""),
-        animated: true,
+        animated: isFocusPathActive ? isEdgeCritical : true,
         style: {
-          stroke: edge.isSweeping ? "#10b981" : edge.isBridgeTx ? "#06b6d4" : "#38bdf8",
-          strokeWidth: isFocusPathActive ? 3 : 2,
+          stroke: edgeColor,
+          strokeWidth: isFocusPathActive ? (isEdgeCritical ? 4 : 1.5) : (edge.isSweeping ? 3 : 2),
+          opacity: isEdgeDimmed ? 0.2 : 1,
+          filter: isFocusPathActive && isEdgeCritical ? "drop-shadow(0 0 6px rgba(239, 68, 68, 0.7))" : undefined,
         },
-        labelStyle: { fill: "#f8fafc", fontSize: 10, fontWeight: 700 },
-        labelBgStyle: { fill: "#0b1226", fillOpacity: 0.95, stroke: "#334155", strokeWidth: 1, rx: 4 },
+        labelStyle: {
+          fill: isEdgeDimmed ? "#64748b" : "#f8fafc",
+          fontSize: 10,
+          fontWeight: 700,
+          opacity: isEdgeDimmed ? 0.3 : 1,
+        },
+        labelBgStyle: {
+          fill: "#0b1226",
+          fillOpacity: isEdgeDimmed ? 0.4 : 0.95,
+          stroke: isEdgeCritical && isFocusPathActive ? "#ef4444" : "#334155",
+          strokeWidth: 1,
+          rx: 4,
+        },
         markerEnd: {
           type: MarkerType.ArrowClosed,
-          color: edge.isSweeping ? "#10b981" : edge.isBridgeTx ? "#06b6d4" : "#38bdf8",
+          color: edgeColor,
         },
         data: edge,
       };
@@ -291,11 +393,22 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
 
     setNodes(rfNodes);
     setEdges(rfEdges);
-  }, [traceResult, isFocusPathActive, roleFilter, setNodes, setEdges]);
+  }, [traceResult, isFocusPathActive, roleFilter, selectedNode, setNodes, setEdges]);
+
+  const handleSelectNode = (node: ForensicNode) => {
+    setSelectedNode(node);
+    setSelectedEdge(null);
+    const matchedNode = nodes.find(n => n.id === node.id || (n.data as ForensicNode)?.fullAddress?.toLowerCase() === node.fullAddress?.toLowerCase());
+    if (matchedNode) {
+      setTargetNodePosition({ x: matchedNode.position.x, y: matchedNode.position.y, ts: Date.now() });
+    }
+  };
 
   const handleNodeClick = (_: any, node: Node) => {
-    setSelectedNode(node.data as ForensicNode);
+    const fn = node.data as ForensicNode;
+    setSelectedNode(fn);
     setSelectedEdge(null);
+    setTargetNodePosition({ x: node.position.x, y: node.position.y, ts: Date.now() });
   };
 
   const handleEdgeClick = (_: any, edge: Edge) => {
@@ -510,6 +623,44 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
                 <option value="MIXER_OBFUSCATION">Mixers &amp; Tumblers</option>
                 <option value="VASP">Exchanges &amp; Vaults</option>
               </select>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <Eye size={13} color={selectedNode ? "#38bdf8" : "#94a3b8"} />
+                <select
+                  value={selectedNode?.id || selectedNode?.fullAddress || ""}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (!val) {
+                      setSelectedNode(null);
+                      return;
+                    }
+                    const found = traceResult.nodes.find(n => n.id === val || n.fullAddress.toLowerCase() === val.toLowerCase());
+                    if (found) handleSelectNode(found);
+                  }}
+                  style={{
+                    background: selectedNode ? "rgba(14, 165, 233, 0.15)" : "#0b1226",
+                    border: selectedNode ? "1px solid #38bdf8" : "1px solid #334155",
+                    borderRadius: 8,
+                    padding: "6px 10px",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: selectedNode ? "#38bdf8" : "#cbd5e1",
+                    cursor: "pointer",
+                    maxWidth: 240,
+                  }}
+                >
+                  <option value="">🎯 Quick Inspect Node...</option>
+                  {traceResult.nodes.map((n, idx) => {
+                    const short = n.fullAddress.length > 12 ? `${n.fullAddress.slice(0, 6)}...${n.fullAddress.slice(-4)}` : n.fullAddress;
+                    const name = n.entityName || (n.entityType === "SUSPECT" ? "Suspect Root" : n.label || short);
+                    return (
+                      <option key={n.id || idx} value={n.id}>
+                        Hop {n.hopDistance}: {name} ({short})
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
             </div>
           </div>
 
@@ -639,7 +790,7 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
       <div style={{ flex: 1, position: "relative" }}>
         <ReactFlowProvider>
           <ReactFlow
-            key={traceResult ? `${traceResult.rootAddress}_${traceResult.nodes.length}_${viewMode}_${roleFilter}_${isFocusPathActive}` : "empty"}
+            key={traceResult ? `${traceResult.rootAddress}_${traceResult.sha256StateHash || traceResult.nodes.length}` : "empty"}
             nodes={nodes}
             edges={edges}
             onNodesChange={onNodesChange}
@@ -652,7 +803,8 @@ export default function TraceTab({ traceResult, isLoading, onRequestNotice, onNa
             maxZoom={1.8}
             defaultViewport={{ x: 0, y: 0, zoom: 0.75 }}
           >
-            <ViewportAutoFitter triggerKey={traceResult ? `${traceResult.rootAddress}_${traceResult.nodes.length}_${viewMode}_${roleFilter}_${isFocusPathActive}` : "empty"} />
+            <ViewportAutoFitter triggerKey={traceResult ? `${traceResult.rootAddress}_${traceResult.sha256StateHash || traceResult.nodes.length}` : "empty"} />
+            <CameraController targetPosition={targetNodePosition} />
             <Background color="#1a2742" gap={24} size={1} variant={BackgroundVariant.Dots} />
             <Controls style={{ background: "#0b1226", border: "1px solid #334155", borderRadius: 8 }} />
             <MiniMap

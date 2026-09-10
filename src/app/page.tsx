@@ -71,7 +71,10 @@ export default function Home() {
     setSearchAddress(address);
     const matched = AUTHENTIC_FORENSIC_CASES.find(c =>
       c.initialSuspectAddress.toLowerCase() === address.toLowerCase() ||
-      c.caseId.toLowerCase() === address.toLowerCase()
+      c.caseId.toLowerCase() === address.toLowerCase() ||
+      c.graphData.destinationVasp?.vaultAddress.toLowerCase() === address.toLowerCase() ||
+      c.graphData.destinationVasp?.depositAddress.toLowerCase() === address.toLowerCase() ||
+      c.graphData.nodes.some(n => n.id.toLowerCase() === address.toLowerCase() || n.fullAddress.toLowerCase() === address.toLowerCase())
     );
     const net = matched ? matched.network : undefined;
     if (net) setSelectedNetwork(net);

@@ -272,7 +272,17 @@ export default function Header({
           {/* Authentic CFCFRMS Benchmark Case Selector */}
           <div className="relative md:w-64 lg:w-72 shrink-0">
             <select
-              value={AUTHENTIC_FORENSIC_CASES.some((c) => c.initialSuspectAddress === searchAddress) ? searchAddress : ""}
+              value={
+                AUTHENTIC_FORENSIC_CASES.find(
+                  (c) =>
+                    c.initialSuspectAddress.toLowerCase() === searchAddress.toLowerCase() ||
+                    c.caseId.toLowerCase() === searchAddress.toLowerCase() ||
+                    c.graphData.destinationVasp?.vaultAddress.toLowerCase() === searchAddress.toLowerCase() ||
+                    c.graphData.nodes.some(
+                      (n) => n.id.toLowerCase() === searchAddress.toLowerCase() || n.fullAddress.toLowerCase() === searchAddress.toLowerCase()
+                    )
+                )?.initialSuspectAddress || ""
+              }
               onChange={(e) => {
                 if (e.target.value) onSelectCase(e.target.value);
               }}

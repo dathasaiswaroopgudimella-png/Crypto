@@ -186,13 +186,19 @@ export function isValidCryptoAddress(address: string): boolean {
   // Solana (Base58, 32 to 44 characters, excluding 0, O, I, l)
   if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(clean)) return true;
 
-  // Authentic Forensic Case ID or Complaint Number match
+  // Authentic Forensic Case ID, Complaint Number, or Case Node Address match
   if (
     AUTHENTIC_FORENSIC_CASES.some(
       (c) =>
         c.caseId.toLowerCase() === clean.toLowerCase() ||
         c.complaintNumber.toLowerCase() === clean.toLowerCase() ||
-        c.initialSuspectAddress.toLowerCase() === clean.toLowerCase()
+        c.initialSuspectAddress.toLowerCase() === clean.toLowerCase() ||
+        c.graphData.rootAddress.toLowerCase() === clean.toLowerCase() ||
+        c.graphData.destinationVasp?.vaultAddress.toLowerCase() === clean.toLowerCase() ||
+        c.graphData.destinationVasp?.depositAddress.toLowerCase() === clean.toLowerCase() ||
+        c.graphData.nodes.some(
+          (n) => n.id.toLowerCase() === clean.toLowerCase() || n.fullAddress.toLowerCase() === clean.toLowerCase()
+        )
     )
   ) {
     return true;

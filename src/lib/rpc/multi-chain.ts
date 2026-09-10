@@ -293,13 +293,14 @@ export class MultiChainForensicRouter {
     let querySuccess = false;
 
     // --- Tier 1: Blockchain.info rawaddr ---
-    const bcApiKey = process.env.BLOCKCHAIN_COM_API_KEY;
+    const bcApiKey = (process.env.BLOCKCHAIN_COM_API_KEY || "").replace(/['"]/g, "").trim();
     const bcHeaders: Record<string, string> = { "User-Agent": "Mozilla/5.0 AEGIS-TRACE/2.0" };
+    let bcUrl = `https://blockchain.info/rawaddr/${address}?limit=25&cors=true`;
     if (bcApiKey && bcApiKey.length > 5 && !bcApiKey.includes("your_")) {
+      bcUrl += `&api_code=${encodeURIComponent(bcApiKey)}`;
       bcHeaders["X-API-Token"] = bcApiKey;
     }
-    const bcUrl = `https://blockchain.info/rawaddr/${address}?limit=25&cors=true`;
-    const bcRes = await safeFetchJson<any>(bcUrl, { headers: bcHeaders }, 3500);
+    const bcRes = await safeFetchJson<any>(bcUrl, { headers: bcHeaders }, 7000);
 
     if (bcRes.ok && bcRes.data) {
       const data = bcRes.data;
@@ -547,12 +548,16 @@ export class MultiChainForensicRouter {
       tgHeaders["TRON-PRO-API-KEY"] = tgApiKey;
     }
 
+    // --- Ingest TRC-20 transfers and native transactions concurrently ---
     const tsUrl = `https://apilist.tronscanapi.com/api/token_trc20/transfers?limit=25&start=0&relatedAddress=${address}`;
-    let tsRes = await safeFetchJson<any>(tsUrl, { headers: tgHeaders }, 3500);
-    if (!tsRes.ok) {
-      tsRes = await safeFetchJson<any>(`https://apilist.tronscan.org/api/token_trc20/transfers?limit=25&start=0&relatedAddress=${address}`, { headers: tgHeaders }, 3500);
-    }
+    const tsTxUrl = `https://apilist.tronscanapi.com/api/transaction?sort=-timestamp&count=true&limit=25&start=0&address=${address}`;
 
+    const [tsRes, tsTxRes] = await Promise.all([
+      safeFetchJson<any>(tsUrl, { headers: tgHeaders }, 5000),
+      safeFetchJson<any>(tsTxUrl, { headers: tgHeaders }, 5000),
+    ]);
+
+    // 1. Process TRC-20 token transfers
     if (tsRes.ok && tsRes.data?.token_transfers) {
       querySuccess = true;
       for (const t of tsRes.data.token_transfers || []) {
@@ -560,8 +565,18 @@ export class MultiChainForensicRouter {
         const toAddr = t.to_address || "";
         const rawAmount = Number(t.quant || 0);
         const decimals = Number(t.tokenInfo?.tokenDecimal ?? 6);
-        const val = decimals > 0 ? rawAmount / Math.pow(10, decimals) : rawAmount;
-        const valUsd = Math.round(val * 100) / 100;
+        const symbol = (t.tokenInfo?.tokenAbbr || t.tokenInfo?.tokenName || "USDT").toUpperCase();
+        const contractAddr = t.contract_address || "";
+        const isOfficialUsdt = contractAddr === "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t" || symbol === "USDT";
+
+        let val = decimals > 0 ? rawAmount / Math.pow(10, decimals) : rawAmount;
+        let valUsd = Math.round(val * 100) / 100;
+
+        // Discount unverified spam airdrops so they don't corrupt forensic volumes
+        if (!isOfficialUsdt && symbol !== "USDC" && symbol !== "TUSD" && symbol !== "USDD") {
+          valUsd = Math.min(valUsd, 2.0);
+        }
+
         const timestamp = t.block_ts ? new Date(t.block_ts).toISOString() : new Date().toISOString();
         const blockNumber = t.block || 0;
         const txHash = t.transaction_id || "0x...";
@@ -575,7 +590,7 @@ export class MultiChainForensicRouter {
             fromAddress: address,
             toAddress: toAddr,
             amount: valUsd,
-            tokenSymbol: "USDT",
+            tokenSymbol: isOfficialUsdt ? "USDT" : symbol,
             timestamp,
             blockNumber,
             network: "TRON",
@@ -587,7 +602,7 @@ export class MultiChainForensicRouter {
             fromAddress: fromAddr,
             toAddress: address,
             amount: valUsd,
-            tokenSymbol: "USDT",
+            tokenSymbol: isOfficialUsdt ? "USDT" : symbol,
             timestamp,
             blockNumber,
             network: "TRON",
@@ -596,10 +611,77 @@ export class MultiChainForensicRouter {
       }
     }
 
-    // --- Tier 2: TronGrid official REST API fallback ---
+    // 2. Process native TRX and smart contract transactions
+    if (tsTxRes.ok && Array.isArray(tsTxRes.data?.data)) {
+      querySuccess = true;
+      for (const t of tsTxRes.data.data) {
+        const txHash = t.hash || t.transaction_id || "0x...";
+        if (outgoing.some(o => o.txHash === txHash) || incoming.some(i => i.txHash === txHash)) continue;
+
+        const ownerAddr = t.ownerAddress || t.contractData?.owner_address || "";
+        const destAddr =
+          t.toAddress ||
+          t.contractData?.receiver_address ||
+          t.contractData?.to_address ||
+          t.trigger_info?.parameter?._to ||
+          (Array.isArray(t.toAddressList) ? t.toAddressList[0] : "");
+        const timestamp = t.timestamp ? new Date(t.timestamp).toISOString() : new Date().toISOString();
+        const blockNumber = t.block || 0;
+
+        let valUsd = 0;
+        let symbol = "TRX";
+
+        if (t.trigger_info?.parameter?._value && t.trigger_info?.parameter?._to) {
+          const rawVal = Number(t.trigger_info.parameter._value || 0);
+          valUsd = Math.round((rawVal / 1e6) * 100) / 100;
+          symbol = "USDT";
+        } else {
+          const sunAmount = Number(t.contractData?.amount || t.contractData?.balance || t.amount || 0);
+          if (sunAmount > 0) {
+            const trxAmount = sunAmount / 1e6;
+            valUsd = Math.round(trxAmount * 0.25 * 100) / 100;
+            symbol = "TRX";
+          } else {
+            // Contract execution with 0 TRX
+            valUsd = 50.0;
+            symbol = "TRX (Contract Execution)";
+          }
+        }
+
+        if (valUsd <= 0 || !destAddr) continue;
+
+        if (ownerAddr.toLowerCase() === address.toLowerCase()) {
+          totalOutflow += valUsd;
+          outgoing.push({
+            txHash,
+            fromAddress: address,
+            toAddress: destAddr,
+            amount: valUsd,
+            tokenSymbol: symbol,
+            timestamp,
+            blockNumber,
+            network: "TRON",
+          });
+        } else if (destAddr.toLowerCase() === address.toLowerCase()) {
+          totalInflow += valUsd;
+          incoming.push({
+            txHash,
+            fromAddress: ownerAddr || "External TRON Sender",
+            toAddress: address,
+            amount: valUsd,
+            tokenSymbol: symbol,
+            timestamp,
+            blockNumber,
+            network: "TRON",
+          });
+        }
+      }
+    }
+
+    // 3. Fallback to TronGrid if both primary endpoints returned zero transfers
     if (!querySuccess || (outgoing.length === 0 && incoming.length === 0)) {
       const tgUrl = `https://api.trongrid.io/v1/accounts/${address}/transactions/trc20?limit=25`;
-      const tgRes = await safeFetchJson<any>(tgUrl, { headers: tgHeaders }, 3500);
+      const tgRes = await safeFetchJson<any>(tgUrl, { headers: tgHeaders }, 4000);
 
       if (tgRes.ok && Array.isArray(tgRes.data?.data)) {
         querySuccess = true;
@@ -640,77 +722,6 @@ export class MultiChainForensicRouter {
               tokenSymbol: symbol,
               timestamp,
               blockNumber: 0,
-              network: "TRON",
-            });
-          }
-        }
-      }
-    }
-
-    // --- Tier 3: TronScan native transaction endpoint fallback ---
-    if (outgoing.length === 0 && incoming.length === 0) {
-      const tsTxUrl = `https://apilist.tronscanapi.com/api/transaction?sort=-timestamp&count=true&limit=25&start=0&address=${address}`;
-      let tsTxRes = await safeFetchJson<any>(tsTxUrl, { headers: tgHeaders }, 3500);
-      if (!tsTxRes.ok) {
-        tsTxRes = await safeFetchJson<any>(
-          `https://apilist.tronscan.org/api/transaction?sort=-timestamp&count=true&limit=25&start=0&address=${address}`,
-          { headers: tgHeaders },
-          3500
-        );
-      }
-      if (tsTxRes.ok && Array.isArray(tsTxRes.data?.data)) {
-        for (const t of tsTxRes.data.data) {
-          const ownerAddr = t.ownerAddress || t.contractData?.owner_address || "";
-          const destAddr =
-            t.toAddress ||
-            t.contractData?.receiver_address ||
-            t.contractData?.to_address ||
-            t.trigger_info?.parameter?._to ||
-            "";
-          const txHash = t.hash || t.transaction_id || "0x...";
-          const timestamp = t.timestamp ? new Date(t.timestamp).toISOString() : new Date().toISOString();
-          const blockNumber = t.block || 0;
-
-          let valUsd = 0;
-          let symbol = "TRX";
-
-          if (t.trigger_info?.parameter?._value && t.trigger_info?.parameter?._to) {
-            const rawVal = Number(t.trigger_info.parameter._value || 0);
-            valUsd = Math.round((rawVal / 1e6) * 100) / 100;
-            symbol = "USDT";
-          } else {
-            const sunAmount = Number(t.contractData?.amount || t.contractData?.balance || t.amount || 0);
-            if (sunAmount > 0) {
-              const trxAmount = sunAmount / 1e6;
-              valUsd = Math.round(trxAmount * 0.25 * 100) / 100;
-              symbol = "TRX";
-            }
-          }
-
-          if (valUsd <= 0 || !destAddr) continue;
-
-          if (ownerAddr.toLowerCase() === address.toLowerCase()) {
-            totalOutflow += valUsd;
-            outgoing.push({
-              txHash,
-              fromAddress: address,
-              toAddress: destAddr,
-              amount: valUsd,
-              tokenSymbol: symbol,
-              timestamp,
-              blockNumber,
-              network: "TRON",
-            });
-          } else if (destAddr.toLowerCase() === address.toLowerCase()) {
-            totalInflow += valUsd;
-            incoming.push({
-              txHash,
-              fromAddress: ownerAddr || "External TRON Sender",
-              toAddress: address,
-              amount: valUsd,
-              tokenSymbol: symbol,
-              timestamp,
-              blockNumber,
               network: "TRON",
             });
           }
@@ -937,7 +948,25 @@ export class MultiChainForensicRouter {
         const blockNumber = Number(item.blockNumber || 0);
         const txHash = item.hash || "0x...";
 
-        if (valUsd < 5) continue;
+        if (valUsd < 5) {
+          // If native ETH transferred is 0, but it is an outbound contract call, preserve it as a contract execution node
+          const isContractCall = item.input && item.input !== "0x" && item.input.length > 10;
+          if (isContractCall && fromAddr === clean && toAddr && toAddr !== clean) {
+            const nominalVal = 100.0;
+            totalOutflow += nominalVal;
+            outgoing.push({
+              txHash,
+              fromAddress: clean,
+              toAddress: toAddr,
+              amount: nominalVal,
+              tokenSymbol: "ETH (Contract Call)",
+              timestamp,
+              blockNumber,
+              network,
+            });
+          }
+          continue;
+        }
 
         if (fromAddr === clean && toAddr && toAddr !== clean) {
           totalOutflow += valUsd;
@@ -986,7 +1015,23 @@ export class MultiChainForensicRouter {
         const blockNumber = Number(item.blockNumber || 0);
         const txHash = item.hash || "0x...";
 
-        if (valUsd < 5) continue;
+        if (valUsd < 5) {
+          if (fromAddr === clean && toAddr && toAddr !== clean) {
+            const nominalVal = 100.0;
+            totalOutflow += nominalVal;
+            outgoing.push({
+              txHash,
+              fromAddress: clean,
+              toAddress: toAddr,
+              amount: nominalVal,
+              tokenSymbol: "ETH (Internal Tx)",
+              timestamp,
+              blockNumber,
+              network,
+            });
+          }
+          continue;
+        }
 
         if (outgoing.some((o) => o.txHash === txHash) || incoming.some((i) => i.txHash === txHash)) continue;
 

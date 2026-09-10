@@ -30,8 +30,12 @@ function scrubThinking(text: string): string {
   if (clean.includes("</think>")) {
     clean = clean.split("</think>").pop() || clean;
   }
-  // Strip meta monologue / reasoning preamble
-  clean = clean.replace(/^(?:Here's a thinking process|Okay, the user is asking|The user wants me to|Let me think|I need to act as)[\s\S]*?\n\n(?=(?:#|\*\*|To:|Subject:|MEMORANDUM|EXECUTIVE|OFFICIAL|1\.))/i, "");
+  const firstHeader = clean.search(/^#\s+/m);
+  if (firstHeader !== -1) {
+    clean = clean.slice(firstHeader);
+  } else {
+    clean = clean.replace(/^(?:Here's a thinking process|Okay, the user is asking|The user wants me to|Let me think|I need to act as|Here is a comprehensive)[\s\S]*?\n\n(?=(?:#|\*\*|To:|Subject:|MEMORANDUM|EXECUTIVE|OFFICIAL|1\.))/i, "");
+  }
   return clean.trim();
 }
 
@@ -48,6 +52,9 @@ function synthesizeSovereignDossier(trace: GraphTraceResult): string {
   const sha256 = trace.sha256StateHash || "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
   const hopCount = Math.max(1, nodes.length - 1);
 
+  const rootNode = nodes.find(n => n.fullAddress?.toLowerCase() === root.toLowerCase() || n.id?.toLowerCase() === root.toLowerCase());
+  const isVaultRoot = rootNode?.isDestinationVault || rootNode?.entityType === "VASP_COLD_VAULT" || rootNode?.entityType === "VASP_HOT_WALLET" || (vasp && vasp.vaultAddress?.toLowerCase() === root.toLowerCase());
+
   const patternTypes = patterns.map(p => (typeof p === "string" ? p : (p as any).patternType || (p as any).type || (p as any).name || ""));
   const hasMixer = patternTypes.includes("MIXER_RELAY") || highRisk.some(h => h.toLowerCase().includes("tornado") || h.toLowerCase().includes("blender") || h.toLowerCase().includes("sinbad"));
   const hasBridge = patternTypes.includes("CROSS_CHAIN_BRIDGE") || patternTypes.includes("BRIDGE_HOP") || (trace.crossChainHops && trace.crossChainHops.length > 0);
@@ -58,7 +65,10 @@ function synthesizeSovereignDossier(trace: GraphTraceResult): string {
   let typology = "Multi-Hop Cyber Financial Siphoning & Mule Layering Syndicate";
   let drainVector = "unauthorized digital asset transfer from victim custody";
 
-  if (hasBridge && hasMixer) {
+  if (isVaultRoot) {
+    typology = "Centralized Custodial Hot Vault Inflow Aggregation & Terminal Sweeping";
+    drainVector = "consolidation of illicit capital funneled from multi-hop victim drainage funnels into exchange custody";
+  } else if (hasBridge && hasMixer) {
     typology = "Inter-Ledger Cross-Chain Arbitrage & Privacy Mixer Evasion Campaign";
     drainVector = "sophisticated cross-chain bridge hopping followed by zero-knowledge privacy pool obfuscation";
   } else if (hasMixer) {
@@ -75,14 +85,25 @@ function synthesizeSovereignDossier(trace: GraphTraceResult): string {
     drainVector = "unspent transaction output fragmentation below regulatory reporting thresholds";
   }
 
-  const vaspName = vasp?.name || "Target Centralized Exchange";
-  const fiuNum = vasp?.fiuNumber || "FIU-IND/RE/2024/0089";
+  const vaspName = vasp?.name || rootNode?.entityName || "Target Centralized Exchange";
+  const fiuNum = vasp?.fiuNumber || rootNode?.fiuRegistrationNumber || "FIU-IND/RE/2024/0089";
   const complianceEmail = vasp?.complianceEmail || "compliance@exchange.com";
-  const vaultAddr = vasp?.vaultAddress || (nodes.find(n => n.isDestinationVault)?.fullAddress) || "Custodial Exchange Hot Vault";
+  const vaultAddr = vasp?.vaultAddress || (nodes.find(n => n.isDestinationVault)?.fullAddress) || root;
 
-  const edgeList = edges.slice(0, 6).map((e, idx) => 
-    `• **Hop ${idx + 1}:** \`${e.source.slice(0, 12)}...\` ➔ \`${e.target.slice(0, 12)}...\` | Amount: **$${(e.amount || 0).toLocaleString()} ${e.tokenSymbol}** | TxHash: \`${e.txHash}\`${e.isSweeping ? ' *(Automated Sweep)*' : ''}${e.isBridgeTx ? ` *(Bridge Hop: ${e.bridgeName || 'Cross-Chain'})*` : ''}`
-  ).join("\n");
+  const edgeList = edges.slice(0, 8).map((e, idx) => {
+    const sShort = e.source.length > 14 ? `${e.source.slice(0, 8)}...${e.source.slice(-6)}` : e.source;
+    const tShort = e.target.length > 14 ? `${e.target.slice(0, 8)}...${e.target.slice(-6)}` : e.target;
+    const tags = [
+      e.isSweeping ? "Automated Sweep" : null,
+      e.isBridgeTx ? `Bridge: ${e.bridgeName || "Cross-Chain"}` : null,
+      e.isPrimaryFlow ? "Primary Flow" : null,
+    ].filter(Boolean).join(" · ");
+    return `• **Hop ${idx + 1}:** \`${sShort}\` ➔ \`${tShort}\` | Amount: **$${(e.amount || 0).toLocaleString()} ${e.tokenSymbol}** | TxHash: \`${e.txHash.slice(0, 16)}...\`${tags ? ` *(${tags})*` : ""}`;
+  }).join("\n");
+
+  const executiveOverview = isVaultRoot
+    ? `A forensic graph reconstruction of subject wallet \`${root}\` operating on the **${network}** distributed ledger confirms this entity as the **${vaspName} Master Hot Vault / Custodial Repository** (FIU-IND Registration: **${fiuNum}**). Graph analysis traces **$${usdAmount} USD**, equivalent to approximately **₹${inrAmount} Indian Rupees**, held or consolidated across this custodial structure linked to upstream cyber breaches. The operational chain establishes institutional custody requiring immediate regulatory freeze directives before funds are commingled or converted to fiat.`
+    : `A forensic graph reconstruction of subject wallet \`${root}\` operating on the **${network}** distributed ledger establishes an active criminal laundering operation categorized under **${typology}**. The total tracked volume identified across the cryptographic chain of custody stands at **$${usdAmount} USD**, equivalent to approximately **₹${inrAmount} Indian Rupees**. The initial breach vector reflects ${drainVector}. Rather than remaining stationary, the illicit capital was rapidly staged through a multi-tier obfuscation funnel spanning **${hopCount} sequential hops** across ${nodes.length} distinct ledger addresses. The operational velocity observed indicates scripted programmatic automation engineered to beat the critical 18-minute operational intervention threshold prior to peer-to-peer fiat off-ramping.`;
 
   return `# I4C EXECUTIVE FORENSIC INTELLIGENCE DOSSIER
 **Statutory Cybercrime Evaluation · Law Enforcement Directorate Guidance**
@@ -93,9 +114,7 @@ function synthesizeSovereignDossier(trace: GraphTraceResult): string {
 ---
 
 ### 1. Executive Incident Synopsis & Threat Characterization
-A forensic graph reconstruction of subject wallet \`${root}\` operating on the **${network}** distributed ledger establishes an active criminal laundering operation categorized under **${typology}**. The total tracked volume identified across the cryptographic chain of custody stands at **$${usdAmount} USD**, equivalent to approximately **₹${inrAmount} Indian Rupees**.
-
-The initial breach vector reflects ${drainVector}. Rather than remaining stationary, the illicit capital was rapidly staged through a multi-tier obfuscation funnel spanning **${hopCount} sequential hops** across ${nodes.length} distinct ledger addresses. The operational velocity observed indicates scripted programmatic automation engineered to beat the critical 18-minute operational intervention threshold prior to peer-to-peer fiat off-ramping.
+${executiveOverview}
 
 ---
 
@@ -175,10 +194,8 @@ Format strictly in natural, authoritative prose with clear bold section headers.
   if (openRouterKey && openRouterKey.length > 20 && !openRouterKey.includes("your_")) {
     const candidateModels = [
       process.env.OPENROUTER_MODEL || "nvidia/nemotron-3-super-120b-a12b:free",
-      "nvidia/nemotron-3-super-120b-a12b:free",
-      "cohere/north-mini-code:free",
-      "nvidia/nemotron-3.5-lightning:free",
-      "liquid/lfm-2.5-2.6b:free",
+      "google/gemma-4-31b-it:free",
+      "nex-agi/nex-n2.5-pro:free",
     ];
 
     const uniqueModels = Array.from(new Set(candidateModels));
@@ -197,11 +214,16 @@ Format strictly in natural, authoritative prose with clear bold section headers.
             model,
             messages: [{ role: "user", content: prompt }],
             temperature: 0.1,
-            max_tokens: 1200,
+            max_tokens: 2200,
             reasoning: { effort: "none" },
           }),
-          signal: AbortSignal.timeout(8000),
+          signal: AbortSignal.timeout(4000),
         });
+
+        if (aiRes.status === 429) {
+          // Account-level quota exhausted on free models; break immediately to proceed to sovereign intelligence
+          break;
+        }
 
         if (aiRes.ok) {
           const json = await aiRes.json();
