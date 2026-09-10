@@ -227,7 +227,7 @@ export function safeBigInt(val: any, fallback: bigint = 0n): bigint {
 async function safeFetchJson<T>(
   url: string,
   options: RequestInit = {},
-  timeoutMs: number = 3500
+  timeoutMs: number = 6000
 ): Promise<{ ok: boolean; status: number; data?: T; error?: string }> {
   if (!globalCircuitBreaker.isAvailable(url)) {
     return { ok: false, status: 429, error: "Host in rate-limit cooldown" };
@@ -245,12 +245,12 @@ async function safeFetchJson<T>(
     });
 
     if (res.status === 429) {
-      globalCircuitBreaker.recordFailure(url, 5000); // max 5s cooldown for 429
+      globalCircuitBreaker.recordFailure(url, 3000); // 3s cooldown for real 429
       return { ok: false, status: 429, error: "Rate limit exceeded (429)" };
     }
 
     if (res.status >= 500) {
-      globalCircuitBreaker.recordFailure(url, 3000); // 3s cooldown for 5xx
+      globalCircuitBreaker.recordFailure(url, 2500); // 2.5s cooldown for 5xx
       return { ok: false, status: res.status, error: `Server error (${res.status})` };
     }
 
@@ -262,7 +262,10 @@ async function safeFetchJson<T>(
     const data = (await res.json()) as T;
     return { ok: true, status: res.status, data };
   } catch (err: any) {
-    globalCircuitBreaker.recordFailure(url, 2500); // 2.5s cooldown for timeout or network glitch
+    // Only cooldown for network disconnects, not for client-side Abort/Timeout
+    if (err?.name !== "TimeoutError" && err?.name !== "AbortError") {
+      globalCircuitBreaker.recordFailure(url, 2000);
+    }
     return { ok: false, status: 0, error: err?.message || "Network request failed" };
   }
 }
@@ -440,6 +443,63 @@ export class MultiChainForensicRouter {
         balance = Math.max(0, funded - spent);
         totalReceived = funded;
         totalSent = spent;
+        querySuccess = true;
+
+        const mpTxsUrl = `https://mempool.space/api/address/${address}/txs`;
+        const mpTxs = await safeFetchJson<any[]>(mpTxsUrl, {}, 3000);
+        if (mpTxs.ok && Array.isArray(mpTxs.data)) {
+          for (const tx of mpTxs.data.slice(0, 25)) {
+            const txHash = tx.txid || "0x...";
+            const timestamp = tx.status?.block_time
+              ? new Date(tx.status.block_time * 1000).toISOString()
+              : new Date().toISOString();
+            const blockNumber = tx.status?.block_height || 0;
+
+            const isSender = (tx.vin || []).some(
+              (inp: any) => inp.prevout?.scriptpubkey_address === address
+            );
+            if (isSender) {
+              for (const out of tx.vout || []) {
+                const outAddr = out.scriptpubkey_address;
+                if (outAddr && outAddr !== address) {
+                  const amountBtc = (out.value || 0) / 1e8;
+                  const amountUsd = Math.round(amountBtc * btcPriceUsd * 100) / 100;
+                  if (amountUsd > 0) {
+                    outgoing.push({
+                      txHash,
+                      fromAddress: address,
+                      toAddress: outAddr,
+                      amount: amountUsd,
+                      tokenSymbol: "BTC",
+                      timestamp,
+                      blockNumber,
+                      network: "BTC",
+                    });
+                  }
+                }
+              }
+            } else {
+              const sender = tx.vin?.[0]?.prevout?.scriptpubkey_address || "External BTC Node";
+              for (const out of tx.vout || []) {
+                if (out.scriptpubkey_address === address) {
+                  const valUsd = Math.round(((out.value || 0) / 1e8) * btcPriceUsd * 100) / 100;
+                  if (valUsd > 0) {
+                    incoming.push({
+                      txHash,
+                      fromAddress: sender,
+                      toAddress: address,
+                      amount: valUsd,
+                      tokenSymbol: "BTC",
+                      timestamp,
+                      blockNumber,
+                      network: "BTC",
+                    });
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
 
@@ -587,20 +647,111 @@ export class MultiChainForensicRouter {
       }
     }
 
+    // --- Tier 3: TronScan native transaction endpoint fallback ---
+    if (outgoing.length === 0 && incoming.length === 0) {
+      const tsTxUrl = `https://apilist.tronscanapi.com/api/transaction?sort=-timestamp&count=true&limit=25&start=0&address=${address}`;
+      let tsTxRes = await safeFetchJson<any>(tsTxUrl, { headers: tgHeaders }, 3500);
+      if (!tsTxRes.ok) {
+        tsTxRes = await safeFetchJson<any>(
+          `https://apilist.tronscan.org/api/transaction?sort=-timestamp&count=true&limit=25&start=0&address=${address}`,
+          { headers: tgHeaders },
+          3500
+        );
+      }
+      if (tsTxRes.ok && Array.isArray(tsTxRes.data?.data)) {
+        for (const t of tsTxRes.data.data) {
+          const ownerAddr = t.ownerAddress || t.contractData?.owner_address || "";
+          const destAddr =
+            t.toAddress ||
+            t.contractData?.receiver_address ||
+            t.contractData?.to_address ||
+            t.trigger_info?.parameter?._to ||
+            "";
+          const txHash = t.hash || t.transaction_id || "0x...";
+          const timestamp = t.timestamp ? new Date(t.timestamp).toISOString() : new Date().toISOString();
+          const blockNumber = t.block || 0;
+
+          let valUsd = 0;
+          let symbol = "TRX";
+
+          if (t.trigger_info?.parameter?._value && t.trigger_info?.parameter?._to) {
+            const rawVal = Number(t.trigger_info.parameter._value || 0);
+            valUsd = Math.round((rawVal / 1e6) * 100) / 100;
+            symbol = "USDT";
+          } else {
+            const sunAmount = Number(t.contractData?.amount || t.contractData?.balance || t.amount || 0);
+            if (sunAmount > 0) {
+              const trxAmount = sunAmount / 1e6;
+              valUsd = Math.round(trxAmount * 0.25 * 100) / 100;
+              symbol = "TRX";
+            }
+          }
+
+          if (valUsd <= 0 || !destAddr) continue;
+
+          if (ownerAddr.toLowerCase() === address.toLowerCase()) {
+            totalOutflow += valUsd;
+            outgoing.push({
+              txHash,
+              fromAddress: address,
+              toAddress: destAddr,
+              amount: valUsd,
+              tokenSymbol: symbol,
+              timestamp,
+              blockNumber,
+              network: "TRON",
+            });
+          } else if (destAddr.toLowerCase() === address.toLowerCase()) {
+            totalInflow += valUsd;
+            incoming.push({
+              txHash,
+              fromAddress: ownerAddr || "External TRON Sender",
+              toAddress: address,
+              amount: valUsd,
+              tokenSymbol: symbol,
+              timestamp,
+              blockNumber,
+              network: "TRON",
+            });
+          }
+        }
+      }
+    }
+
     // Sort outgoing by amount descending
     outgoing.sort((a, b) => b.amount - a.amount);
 
-    const balanceUsd = Math.max(0, Math.round((totalInflow - totalOutflow) * 100) / 100);
+    let finalBalanceUsd = Math.max(0, Math.round((totalInflow - totalOutflow) * 100) / 100);
+    let finalTxCount = outgoing.length + incoming.length;
+
+    if (finalBalanceUsd === 0 || finalTxCount === 0) {
+      try {
+        const accRes = await safeFetchJson<any>(
+          `https://apilist.tronscanapi.com/api/account?address=${address}`,
+          { headers: tgHeaders },
+          3500
+        );
+        if (accRes.ok && accRes.data) {
+          const sunBal = Number(accRes.data.balance || 0);
+          const trxBal = sunBal / 1e6;
+          const trxUsd = Math.round(trxBal * 0.25 * 100) / 100;
+          if (trxUsd > 0) finalBalanceUsd = trxUsd;
+          if (accRes.data.totalTransactionCount) {
+            finalTxCount = Math.max(finalTxCount, Number(accRes.data.totalTransactionCount));
+          }
+        }
+      } catch {}
+    }
 
     const result: AccountStateResult = {
       address,
       network: "TRON",
       detectedAsset,
-      balance: balanceUsd,
-      balanceUsd,
+      balance: finalBalanceUsd,
+      balanceUsd: finalBalanceUsd,
       totalReceived: Math.round(totalInflow * 100) / 100,
       totalSent: Math.round(totalOutflow * 100) / 100,
-      txCount: outgoing.length + incoming.length,
+      txCount: finalTxCount,
       outgoingTransfers: outgoing.slice(0, 10),
       incomingTransfers: incoming.slice(0, 10),
     };
@@ -643,42 +794,46 @@ export class MultiChainForensicRouter {
     // --- Tier 1: Multi-chain EVM token transfers & native transactions in parallel ---
     let tokenRes: any = null;
     let txRes: any = null;
+    let internalRes: any = null;
     let balRes: any = null;
 
     if (network === "ETH") {
       // Primary for Ethereum: RouteScan high-performance EVM mirror (no rate limits, sort=desc for recent blocks)
       const rsTokenUrl = `https://api.routescan.io/v2/network/mainnet/evm/1/etherscan/api?module=account&action=tokentx&address=${clean}&page=1&offset=25&sort=desc`;
       const rsTxUrl = `https://api.routescan.io/v2/network/mainnet/evm/1/etherscan/api?module=account&action=txlist&address=${clean}&page=1&offset=25&sort=desc`;
+      const rsInternalUrl = `https://api.routescan.io/v2/network/mainnet/evm/1/etherscan/api?module=account&action=txlistinternal&address=${clean}&page=1&offset=25&sort=desc`;
       const rsBalUrl = `https://api.routescan.io/v2/network/mainnet/evm/1/etherscan/api?module=account&action=balance&address=${clean}`;
 
-      const [rToken, rTx, rBal] = await Promise.all([
-        safeFetchJson<any>(rsTokenUrl, {}, 3500),
-        safeFetchJson<any>(rsTxUrl, {}, 3500),
-        safeFetchJson<any>(rsBalUrl, {}, 3000),
+      const [rToken, rTx, rInternal, rBal] = await Promise.all([
+        safeFetchJson<any>(rsTokenUrl, {}, 5000),
+        safeFetchJson<any>(rsTxUrl, {}, 5000),
+        safeFetchJson<any>(rsInternalUrl, {}, 5000),
+        safeFetchJson<any>(rsBalUrl, {}, 4000),
       ]);
 
       tokenRes = rToken;
       txRes = rTx;
+      internalRes = rInternal;
       balRes = rBal;
 
       // Fallback to Blockscout if RouteScan returned non-ok or empty results
-      if (!tokenRes?.ok || !Array.isArray(tokenRes?.data?.result)) {
+      if (!tokenRes?.ok || !Array.isArray(tokenRes?.data?.result) || tokenRes.data.result.length === 0) {
         const bsTokenUrl = `https://eth.blockscout.com/api?module=account&action=tokentx&address=${clean}&page=1&offset=25&sort=desc`;
-        const bsRes = await safeFetchJson<any>(bsTokenUrl, {}, 3000);
-        if (bsRes.ok && Array.isArray(bsRes.data?.result)) {
+        const bsRes = await safeFetchJson<any>(bsTokenUrl, {}, 4500);
+        if (bsRes.ok && Array.isArray(bsRes.data?.result) && bsRes.data.result.length > 0) {
           tokenRes = bsRes;
         }
       }
-      if (!txRes?.ok || !Array.isArray(txRes?.data?.result)) {
+      if (!txRes?.ok || !Array.isArray(txRes?.data?.result) || txRes.data.result.length === 0) {
         const bsTxUrl = `https://eth.blockscout.com/api?module=account&action=txlist&address=${clean}&page=1&offset=25&sort=desc`;
-        const bsRes = await safeFetchJson<any>(bsTxUrl, {}, 3000);
-        if (bsRes.ok && Array.isArray(bsRes.data?.result)) {
+        const bsRes = await safeFetchJson<any>(bsTxUrl, {}, 4500);
+        if (bsRes.ok && Array.isArray(bsRes.data?.result) && bsRes.data.result.length > 0) {
           txRes = bsRes;
         }
       }
-      if (!balRes?.ok || !balRes?.data?.result) {
+      if (!balRes?.ok || !balRes?.data?.result || balRes.data.result === "0") {
         const bsBalUrl = `https://eth.blockscout.com/api?module=account&action=balance&address=${clean}`;
-        const bsRes = await safeFetchJson<any>(bsBalUrl, {}, 2500);
+        const bsRes = await safeFetchJson<any>(bsBalUrl, {}, 3500);
         if (bsRes.ok && bsRes.data?.result) {
           balRes = bsRes;
         }
@@ -783,6 +938,57 @@ export class MultiChainForensicRouter {
         const txHash = item.hash || "0x...";
 
         if (valUsd < 5) continue;
+
+        if (fromAddr === clean && toAddr && toAddr !== clean) {
+          totalOutflow += valUsd;
+          outgoing.push({
+            txHash,
+            fromAddress: clean,
+            toAddress: toAddr,
+            amount: valUsd,
+            tokenSymbol: "ETH",
+            timestamp,
+            blockNumber,
+            network,
+          });
+        } else if (toAddr === clean && fromAddr && fromAddr !== clean) {
+          totalInflow += valUsd;
+          incoming.push({
+            txHash,
+            fromAddress: fromAddr,
+            toAddress: clean,
+            amount: valUsd,
+            tokenSymbol: "ETH",
+            timestamp,
+            blockNumber,
+            network,
+          });
+        }
+      }
+    }
+
+    // Internal transactions via txlistinternal (smart contracts, DEX swaps, mixer withdrawals)
+    if (internalRes?.ok && Array.isArray(internalRes?.data?.result)) {
+      blockscoutSuccess = true;
+      const ethPrice = 2700;
+      for (const item of internalRes.data.result) {
+        if (item.isError === "1") continue;
+        const fromAddr = (item.from || "").toLowerCase();
+        const toAddr = (item.to || "").toLowerCase();
+        let valEth = 0;
+        try {
+          valEth = Number(BigInt(item.value || "0")) / 1e18;
+        } catch {}
+        const valUsd = Math.round(valEth * ethPrice * 100) / 100;
+        const timestamp = item.timeStamp
+          ? new Date(Number(item.timeStamp) * 1000).toISOString()
+          : new Date().toISOString();
+        const blockNumber = Number(item.blockNumber || 0);
+        const txHash = item.hash || "0x...";
+
+        if (valUsd < 5) continue;
+
+        if (outgoing.some((o) => o.txHash === txHash) || incoming.some((i) => i.txHash === txHash)) continue;
 
         if (fromAddr === clean && toAddr && toAddr !== clean) {
           totalOutflow += valUsd;

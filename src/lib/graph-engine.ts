@@ -358,12 +358,15 @@ export class GraphTraversalEngine {
       };
       nodesMap.set(cleanRoot.toLowerCase(), rootNode);
 
-      // Filter out null addresses and sort inbound by amount descending
-      const sortedIncoming = [...validIncoming]
-        .filter(t => t.fromAddress && !t.fromAddress.startsWith("0x0000000000000000000000000000000000000000"))
-        .sort((a: any, b: any) => (b.amount || 0) - (a.amount || 0));
+      // Sort inbound by amount descending, prioritizing non-zero senders
+      const sortedIncoming = [...validIncoming].sort((a: any, b: any) => {
+        const aZero = (a.fromAddress || "").startsWith("0x0000000000000000000000000000000000000000") ? 1 : 0;
+        const bZero = (b.fromAddress || "").startsWith("0x0000000000000000000000000000000000000000") ? 1 : 0;
+        if (aZero !== bZero) return aZero - bZero;
+        return (b.amount || 0) - (a.amount || 0);
+      });
 
-      const topIncoming = sortedIncoming.length > 0 ? sortedIncoming.slice(0, 6) : validIncoming.slice(0, 6);
+      const topIncoming = sortedIncoming.slice(0, 6);
 
       for (const tx of topIncoming) {
         const amount = Math.round(Number(tx.amount || 0) * 100) / 100;
@@ -376,12 +379,17 @@ export class GraphTraversalEngine {
         const senderEntity = HeuristicEngine.identifyKnownEntity(senderKey, tx.network || resolvedNetwork);
         if (senderEntity.riskLevel === "CRITICAL") highRiskFound.add(senderEntity.name || senderAddr);
 
+        const isNullSender = senderKey.startsWith("0x0000000000000000000000000000000000000000");
+        const senderLabel = isNullSender
+          ? "Token Mint / Issuance Contract"
+          : (senderEntity.name
+            ? `${senderEntity.name} (Funding Node)`
+            : `Inbound Sender (${senderAddr.slice(0, 6)}...${senderAddr.slice(-4)})`);
+
         if (!nodesMap.has(senderKey)) {
           const senderNode: ForensicNode = {
             id: senderAddr,
-            label: senderEntity.name
-              ? `${senderEntity.name} (Funding Node)`
-              : `Inbound Sender (${senderAddr.slice(0, 6)}...${senderAddr.slice(-4)})`,
+            label: senderLabel,
             fullAddress: senderAddr,
             network: tx.network || resolvedNetwork,
             entityType: senderEntity.entityType || "MULE_WALLET",
@@ -736,7 +744,7 @@ export class GraphTraversalEngine {
       const remainingTime = MAX_TRAVERSAL_BUDGET_MS - (performance.now() - startTime);
       if (remainingTime < 500) break;
 
-      const perQueryTimeout = Math.max(1200, Math.min(remainingTime, 5000));
+      const perQueryTimeout = Math.max(3500, Math.min(remainingTime, 8000));
 
       const batchResults = await Promise.allSettled(
         batchToQuery.map(candidate =>
